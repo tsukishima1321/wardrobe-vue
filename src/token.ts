@@ -3,7 +3,7 @@ export interface TokenResponse {
     refresh: string;
 }
 
-export async function loadImageWithToken(url: string, img: HTMLImageElement): Promise<void> {
+export async function GetBlobImgSrc(url: string): Promise<string> {
     const token = localStorage.getItem('wardrobe-access-token') || 'default-token';
     try {
         const response = await fetch(url, {
@@ -20,31 +20,31 @@ export async function loadImageWithToken(url: string, img: HTMLImageElement): Pr
                 const refreshToken = localStorage.getItem('wardrobe-refresh-token');
                 if (!refreshToken) {
                     console.error('Refresh token not found!');
-                    
-                    return;
+                    throw new Error('Refresh token failed');
                 }
-
                 try {
-                    await refreshAccessToken(refreshToken);
+                    const res = await refreshAccessToken(refreshToken);
+                    if (!res) {
+                        console.error('Refresh token failed');
+                        throw new Error('Refresh token failed');
+                    }
                 } catch (error) {
                     console.error('Refresh token failed:', error);
-                    
-                    return;
+                    throw new Error('Refresh token failed');
                 }
                 // 重新加载图片
-                loadImageWithToken(url, img);
-                return;
+                return GetBlobImgSrc(url);
             }
             throw new Error(`Image load failed! status: ${response.status}`);
         } else {
             const blob = await response.blob();
             const objectUrl = URL.createObjectURL(blob);
-            img.src = objectUrl;
+            return objectUrl;
         }
     } catch (error) {
         console.error('图片加载失败:', error);
         // 可以设置一个默认图片
-        // img.src = '/default-image.jpg';
+        return '/default-image.jpg';
     }
 }
 
@@ -92,43 +92,42 @@ export async function refreshAccessToken(refreshToken: string): Promise<boolean>
         return false;
     } else {
         const data = await response.json() as TokenResponse;
-        localStorage.setItem('wardrobe-refresh-token', data.refresh);
         localStorage.setItem('wardrobe-access-token', data.access);
     }
     return true;
 }
 
-export async function fetchDataAutoRetry(url: string, para: object, method = 'POST'): Promise<object | null> {
+export async function fetchDataAutoRetry(url: string, para: object, method = 'POST'): Promise<object> {
     let data;
     try {
         let accessToken = localStorage.getItem('wardrobe-access-token');
         if (!accessToken) {
             console.log('No access token found. Please log in again.');
-            return null;
+            throw new Error('No access token found. Please log in again.');
         }
         data = await fetchJsonWithToken(url, accessToken, para, method) as any;
         if (data.message === 'not authorized') {
             const refreshToken = localStorage.getItem('wardrobe-refresh-token');
             if (!refreshToken) {
                 console.log('No refresh token found. Please log in again.');
-                return null;
+                throw new Error('No refresh token found. Please log in again.');
             }
             try {
                 await refreshAccessToken(refreshToken);
                 accessToken = localStorage.getItem('wardrobe-access-token');
                 if (!accessToken) {
                     console.log('No access token found. Please log in again.');
-                    return null;
+                    throw new Error('No access token found. Please log in again.');
                 }
                 data = await fetchJsonWithToken(url, accessToken, para, method);
             } catch (refreshError) {
                 console.error('Error refreshing token:', refreshError);
-                return null;
+                throw new Error('Error refreshing token');
             }
         }
     } catch (error) {
         console.error('Error fetching data:', error);
-        return null;
+        throw new Error('Error fetching data');
     }
     return data;
 }
