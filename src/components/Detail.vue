@@ -6,5 +6,7 @@ const imgSrc = ref(router.currentRoute.value.params.src);
 </script>
 
 <template>
-    <h1>{{ imgSrc }}</h1>
+    <div>
+        <h1>{{ imgSrc }}</h1>
+    </div>
 </template>

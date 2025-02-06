@@ -1,18 +1,23 @@
 <script setup lang="ts">
+import Head from './components/Head.vue';
 </script>
 
 <template>
-  <header>
+  <div class="main">
+    <Head />
     <router-view />
-  </header>
+  </div>
 </template>
 
 <style scoped>
-@media (min-width: 1024px) {
-  .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
+
+.main {
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
+
 </style>

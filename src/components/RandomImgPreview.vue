@@ -19,21 +19,18 @@ const router = useRouter();
 
 const pickedImg = ref('');
 let oriSrc: string = '';
-const pickImg = async () => {
-    let res: ImgInfo;
-    try {
-        if (typeSelected.value != '不限') {
-            res = await fetchDataAutoRetry('/api/random/?type=' + typeSelected.value, {}, 'GET') as ImgInfo;
-        } else {
-            res = await fetchDataAutoRetry('/api/random/', {}, 'GET') as ImgInfo;
-        }
-        const blobSrc = await GetBlobImgSrc("/image/thumbnails/" + res.src);
-        oriSrc = res.src;
-        pickedImg.value = blobSrc;
-    }
-    catch (e) {
+const pickImg = () => {
+    fetchDataAutoRetry(`/api/random/${typeSelected.value == '不限' ? '' : `?type=${typeSelected.value}`}`, {}, 'GET').then((res) => {
+        const r = res as ImgInfo;
+        GetBlobImgSrc("/image/thumbnails/" + r.src).then((blobSrc) => {
+            oriSrc = r.src;
+            pickedImg.value = blobSrc;
+        }).catch(() => {
+            router.push('/login');
+        });
+    }).catch(() => {
         router.push('/login');
-    }
+    });
 };
 
 const types = ref(['']);
@@ -59,15 +56,17 @@ const openDetail = () => {
 </script>
 
 <template>
-    <div id="image-viewer">
-        <img id="viewedImage" :src="pickedImg">
+    <div id="random-img-preview">
+        <div id="image-viewer">
+            <img id="viewedImage" :src="pickedImg">
+        </div>
+        <select id="typeSelected" v-model="typeSelected">
+            <option>不限</option>
+            <option v-for="type in types" :value="type">{{ type }}</option>
+        </select>
+        <button id="randomButton" @click="pickImg">换一张</button>
+        <button id="detailButton" @click="openDetail">查看详情</button>
     </div>
-    <select id="typeSelected" v-model="typeSelected">
-        <option>不限</option>
-        <option v-for="type in types" :value="type">{{ type }}</option>
-    </select>
-    <button id="randomButton" @click="pickImg">换一张</button>
-    <button id="detailButton" @click="openDetail">查看详情</button>
 </template>
 
 <style scoped>
@@ -82,12 +81,13 @@ img {
     width: 30vw;
     overflow: scroll;
     text-align: center;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
 }
 
 button {
     padding: 5px;
     margin-top: 5px;
+    margin-left: 5px;
     cursor: pointer;
 }
 
@@ -98,5 +98,16 @@ select {
 
 #image-info {
     text-align: center;
+}
+
+@media (max-width: 600px) {
+    #random-img-preview {
+        margin-bottom: 20px;
+    }
+
+    #image-viewer {
+        width: auto;
+        height: 50vh;
+    }
 }
 </style>

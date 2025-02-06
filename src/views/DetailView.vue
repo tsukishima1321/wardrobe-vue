@@ -4,9 +4,7 @@ import Detail from '../components/Detail.vue'
 </script>
 
 <template>
-  <main>
-    <Detail />
-  </main>
+  <Detail />
 </template>
 
 <style></style>
