@@ -113,13 +113,18 @@ export async function fetchDataAutoRetry(url: string, para: object, method = 'PO
                 throw new Error('No refresh token found. Please log in again.');
             }
             try {
-                await refreshAccessToken(refreshToken);
-                accessToken = localStorage.getItem('wardrobe-access-token');
-                if (!accessToken) {
-                    console.log('No access token found. Please log in again.');
-                    throw new Error('No access token found. Please log in again.');
+                if (await refreshAccessToken(refreshToken)) {
+                    accessToken = localStorage.getItem('wardrobe-access-token');
+                    if (!accessToken) {
+                        console.log('No access token found. Please log in again.');
+                        throw new Error('No access token found. Please log in again.');
+                    }
+                    data = await fetchJsonWithToken(url, accessToken, para, method);
                 }
-                data = await fetchJsonWithToken(url, accessToken, para, method);
+                else {
+                    console.log('Refresh token failed. Please log in again.');
+                    throw new Error('Refresh token failed. Please log in again.');
+                }
             } catch (refreshError) {
                 console.error('Error refreshing token:', refreshError);
                 throw new Error('Error refreshing token');

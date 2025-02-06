@@ -34,6 +34,11 @@ if (!accessToken || !refreshToken) {
             }
         });
 }
+
+const search = (keyword: string) => {
+    const newWindow = router.resolve({ name: 'search', params: { keyword: keyword } });
+    window.open(newWindow.href, '_blank');
+}
 </script>
 
 <template>
@@ -45,7 +50,7 @@ if (!accessToken || !refreshToken) {
                 <RandomImgPreview />
             </div>
             <h2>搜索</h2>
-            <SearchBarSimple />
+            <SearchBarSimple @updateValue="search" />
         </div>
         <div id="right-column">
             <Statistics />
