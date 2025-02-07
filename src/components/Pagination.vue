@@ -8,7 +8,9 @@ const { maxPage } = defineProps({
     }
 });
 
-const emits = defineEmits(['pageChanged']);
+const emits = defineEmits<{
+    pageChanged: [page: number]
+}>();
 
 const currentPage = ref(1);
 const visiblePages = computed(() => {

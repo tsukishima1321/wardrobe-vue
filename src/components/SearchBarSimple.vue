@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, defineEmits } from 'vue';
-const emits = defineEmits(['updateValue']);
+const emits = defineEmits<{
+    updateValue: [keyword: string]
+}>();
 const keyword = ref('');
 function sendValue() {
     emits('updateValue', keyword.value)

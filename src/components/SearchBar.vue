@@ -24,8 +24,6 @@ export interface SearchParams {
   page: number;
 }
 
-const emits = defineEmits(['updateValue']);
-
 const keyword = ref(props.keyword);
 const sortByText = ref('日期');
 const sortBy = computed(() => {
@@ -37,6 +35,7 @@ const sortBy = computed(() => {
     case '标题':
       return 'description';
   }
+  return 'date';
 })
 const sortOrder = ref('desc');
 const dateFrom = ref('');
@@ -51,8 +50,12 @@ watchEffect(() => {
   typeFilter.value = props.typeList;
 })
 
+const emits = defineEmits<{
+  updateValue: [params: SearchParams]
+}>();
+
 function sendValue() {
-  const searchParams = {
+  const searchParams:SearchParams = {
     keyword: keyword.value,
     sortBy: sortBy.value,
     sortOrder: sortOrder.value,
