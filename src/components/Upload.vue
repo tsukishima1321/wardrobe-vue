@@ -11,8 +11,7 @@ const types = ref<Array<string>>([]);
 
 const typeSelected = ref('');
 const imgTitle = ref('');
-const imgDate = ref('');
-//(document.getElementById('dateInput') as HTMLInputElement).valueAsDate = new Date();
+const imgDate = ref(new Date().toISOString().split('T')[0]);
 const isOCR = ref(true);
 
 const previewImage = () => {
@@ -105,6 +104,7 @@ const submitEdit = async () => {
 
 fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
     types.value = res as Array<string>;
+    typeSelected.value = types.value[0];
 }).catch(() => {
     router.push('/login');
 });
@@ -164,7 +164,7 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
     flex-direction: column;
 }
 
-.uploadButton{
+.uploadButton {
     width: 48px;
     height: 48px;
     margin-left: 10px;
