@@ -22,6 +22,11 @@ const router = createRouter({
       path: '/search/:keyword?',
       name: 'search',
       component: () => import('../views/SearchView.vue')
+    },
+    {
+      path: '/upload',
+      name: 'upload',
+      component: () => import('../views/UploadView.vue')
     }
   ],
 })

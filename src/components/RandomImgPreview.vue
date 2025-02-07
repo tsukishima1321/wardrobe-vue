@@ -33,7 +33,7 @@ const pickImg = () => {
     });
 };
 
-const types = ref(['']);
+const types = ref<Array<string>>([]);
 const typeSelected = ref('');
 fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
     types.value = res as Array<string>;

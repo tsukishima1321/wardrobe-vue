@@ -54,6 +54,9 @@ const handleSubmit = async () => {
 
 <style scoped>
 .login-container {
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 100px;
     background-color: #fff;
     padding: 20px;
     border-radius: 8px;
