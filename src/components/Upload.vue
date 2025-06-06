@@ -1,378 +1,394 @@
 <script setup lang="ts">
-import iconUpload from '@/assets/icons/upload.svg';
-import iconCheck from '@/assets/icons/check.svg';
 import { fetchDataAutoRetry, checkToken, refreshAccessToken } from '../token.ts';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { ElMessage, ElLoading } from 'element-plus';
+import type { UploadFile } from 'element-plus';
 
 const router = useRouter();
 
 const types = ref<Array<string>>([]);
-
 const typeSelected = ref('');
 const imgTitle = ref('');
 const imgDate = ref(new Date().toISOString().split('T')[0]);
 const isOCR = ref(true);
+const fileList = ref<UploadFile[]>([]);
+const previewImageUrl = ref('');
+const loading = ref(false);
 
-const previewImage = () => {
-    const file = document.getElementById('fileInput') as HTMLInputElement;
-    if (!file.files || file.files.length === 0) {
-        return;
+const handleFileChange = (file: UploadFile) => {
+    if (file.raw) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            previewImageUrl.value = e.target?.result as string;
+        };
+        reader.readAsDataURL(file.raw);
     }
-    const imgFile = file.files[0];
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const img = document.getElementById('viewedImage') as HTMLImageElement;
-        img.src = e.target?.result as string;
-    };
-    reader.readAsDataURL(imgFile);
+    fileList.value = [file];
+    return false; // 阻止自动上传
 };
 
-const uploadMaterial = () => {
-    const file = document.getElementById('fileInput') as HTMLInputElement;
-    file.click();
+const handleRemove = () => {
+    fileList.value = [];
+    previewImageUrl.value = '';
 };
 
 const submitEdit = async () => {
-    const loadingScreen = document.getElementById('loading-screen') as HTMLDivElement;
-    loadingScreen.style.display = 'flex';
-    const file = document.getElementById('fileInput') as HTMLInputElement;
-    if (!file.files || file.files.length === 0) {
-        alert('Please select an image to upload');
+    if (fileList.value.length === 0) {
+        ElMessage.warning('请选择要上传的图片');
         return;
     }
-    const imgFile = file.files[0];
-    const formData = new FormData();
-    formData.append('image', imgFile);
-    formData.append('title', imgTitle.value);
-    formData.append('type', typeSelected.value);
-    formData.append('date', imgDate.value);
-    formData.append('doOCR', isOCR.value ? 'true' : 'false');
 
-    const url = '/api/image/new/';
-    const token = localStorage.getItem('wardrobe-access-token');
-    if (!token) {
-        router.push('/login');
+    if (!imgTitle.value.trim()) {
+        ElMessage.warning('请输入图片标题');
         return;
     }
-    if (await checkToken(token)) {
-        const response = await fetch(url, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
-        });
-        if (!response.ok) {
-            alert('上传失败!');
-            console.error('Submit edit failed:', response);
-            loadingScreen.style.display = 'none';
-            return;
-        }
-    } else {
-        const refreshToken = localStorage.getItem('wardrobe-refresh-token');
-        if (!refreshToken) {
-            console.error('Refresh token not found!');
-            router.push('/login');
-            loadingScreen.style.display = 'none';
-            return;
-        }
-        try {
-            refreshAccessToken(refreshToken);
-        } catch (error) {
-            console.error('Refresh token failed:', error);
-            router.push('/login');
-            return;
-        }
-        const response = await fetch(url, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
-        });
-        if (!response.ok) {
-            alert('上传失败!');
-            console.error('Submit edit failed:', response);
-            loadingScreen.style.display = 'none';
-            return;
-        }
+
+    if (!typeSelected.value) {
+        ElMessage.warning('请选择图片类型');
+        return;
     }
-    loadingScreen.style.display = 'none';
-    alert('上传成功!');
+
+    loading.value = true;
+    const loadingInstance = ElLoading.service({
+        lock: true,
+        text: '上传中...',
+        background: 'rgba(0, 0, 0, 0.7)',
+    });
+
+    try {
+        const imgFile = fileList.value[0].raw!;
+        const formData = new FormData();
+        formData.append('image', imgFile);
+        formData.append('title', imgTitle.value);
+        formData.append('type', typeSelected.value);
+        formData.append('date', imgDate.value);
+        formData.append('doOCR', isOCR.value ? 'true' : 'false');
+
+        const url = '/api/image/new/';
+        const token = localStorage.getItem('wardrobe-access-token');
+        if (!token) {
+            router.push('/login');
+            return;
+        }
+
+        let response;
+        if (await checkToken(token)) {
+            response = await fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            });
+        } else {
+            const refreshToken = localStorage.getItem('wardrobe-refresh-token');
+            if (!refreshToken) {
+                console.error('Refresh token not found!');
+                router.push('/login');
+                return;
+            }
+            try {
+                await refreshAccessToken(refreshToken);
+            } catch (error) {
+                console.error('Refresh token failed:', error);
+                router.push('/login');
+                return;
+            }
+            const newToken = localStorage.getItem('wardrobe-access-token');
+            response = await fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Authorization': 'Bearer ' + newToken
+                }
+            });
+        }
+
+        if (!response.ok) {
+            ElMessage.error('上传失败!');
+            console.error('Submit edit failed:', response);
+            return;
+        }
+
+        ElMessage.success('上传成功!');
+        // 重置表单
+        fileList.value = [];
+        previewImageUrl.value = '';
+        imgTitle.value = '';
+        imgDate.value = new Date().toISOString().split('T')[0];
+        // 为便于连续上传，不重置ocr和类型选择
+        // isOCR.value = true;
+        // if (types.value.length > 0) {
+        //    typeSelected.value = types.value[0];
+        // }
+    } catch (error) {
+        console.error('Upload error:', error);
+        ElMessage.error('上传失败!');
+    } finally {
+        loading.value = false;
+        loadingInstance.close();
+    }
 };
 
+// 获取类型列表
 fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
     types.value = res as Array<string>;
-    typeSelected.value = types.value[0];
+    if (types.value.length > 0) {
+        typeSelected.value = types.value[0];
+    }
 }).catch(() => {
     router.push('/login');
 });
 </script>
 
 <template>
-    <div class="upload">
-        <div id="loading-screen" class="loading-screen" style="display: none;">
-            <div class="spinner"></div>
-        </div>
-        <div class="left">
-            <input type="file" ref="fileInput" style="display:none" id="fileInput" accept="image/*"
-                @change="previewImage">
-            <button @click="uploadMaterial" class="uploadButton">
-                <img :src="iconUpload" alt="Upload">
-            </button>
-            <div id="image-viewer">
-                <img id="viewedImage" alt="Image Viewer">
-            </div>
-        </div>
-        <div class="right">
-            <input type="text" id="imgTitle" v-model="imgTitle">
-            <div class="row">
-                <select id="typeSelected" v-model="typeSelected">
-                    <option v-for="type in types" :value="type">{{ type }}</option>
-                </select>
-                <div class="right-row">
-                    <input type='date' id="dateInput" v-model="imgDate">
-                    <input type='checkbox' id="imgOCR" checked="true" class="switch" v-model="isOCR">
-                    <label for="imgOCR">是否启用OCR</label>
-                </div>
-            </div>
-            <button id="submitButton" @click="submitEdit">
-                <img :src="iconCheck" alt="Submit">
-            </button>
-            <hr>
-        </div>
-    </div>
+    <el-container class="upload-container">
+        <el-main>
+            <el-row :gutter="20" style="height: 100%;">
+                <!-- 左侧：图片预览区域 -->
+                <el-col :span="12">
+                    <el-card class="preview-card" shadow="hover">
+                        <template #header>
+                            <div class="card-header">
+                                <span>图片预览</span>
+                            </div>
+                        </template>
+                          <!-- 上传组件 -->
+                        <el-upload
+                            v-model:file-list="fileList"
+                            :on-change="handleFileChange"
+                            :on-remove="handleRemove"
+                            :limit="1"
+                            accept="image/*"
+                            list-type="picture-card"
+                            :auto-upload="false"
+                        >
+                            <el-icon><Plus /></el-icon>
+                            <template #tip>
+                                <div class="el-upload__tip">
+                                    只能上传图片文件
+                                </div>
+                            </template>
+                        </el-upload>
+
+                        <!-- 图片预览 -->
+                        <div v-if="previewImageUrl" class="preview-container">
+                            <el-image
+                                :src="previewImageUrl"
+                                fit="contain"
+                                style="width: 100%; max-height: 500px;"
+                                :preview-src-list="[previewImageUrl]"
+                            />
+                        </div>
+                    </el-card>
+                </el-col>
+
+                <!-- 右侧：表单区域 -->
+                <el-col :span="12">
+                    <el-card class="form-card" shadow="hover">
+                        <template #header>
+                            <div class="card-header">
+                                <span>图片信息</span>
+                            </div>
+                        </template>
+
+                        <el-form :model="{ imgTitle, typeSelected, imgDate, isOCR }" label-width="100px" size="large">
+                            <!-- 图片标题 -->
+                            <el-form-item label="图片标题" required>
+                                <el-input
+                                    v-model="imgTitle"
+                                    placeholder="请输入图片标题"
+                                    clearable
+                                />
+                            </el-form-item>
+
+                            <!-- 图片类型 -->
+                            <el-form-item label="图片类型" required>
+                                <el-select
+                                    v-model="typeSelected"
+                                    placeholder="请选择图片类型"
+                                    style="width: 100%;"
+                                    clearable
+                                >
+                                    <el-option
+                                        v-for="type in types"
+                                        :key="type"
+                                        :label="type"
+                                        :value="type"
+                                    />
+                                </el-select>
+                            </el-form-item>
+
+                            <!-- 图片日期 -->
+                            <el-form-item label="图片日期">
+                                <el-date-picker
+                                    v-model="imgDate"
+                                    type="date"
+                                    placeholder="选择日期"
+                                    style="width: 100%;"
+                                    format="YYYY-MM-DD"
+                                    value-format="YYYY-MM-DD"
+                                />
+                            </el-form-item>
+
+                            <!-- OCR 开关 -->
+                            <el-form-item label="启用OCR">
+                                <el-switch
+                                    v-model="isOCR"
+                                    active-text="是"
+                                    inactive-text="否"
+                                />
+                            </el-form-item>
+
+                            <!-- 提交按钮 -->
+                            <el-form-item>
+                                <el-button
+                                    type="primary"
+                                    size="large"
+                                    :loading="loading"
+                                    @click="submitEdit"
+                                    style="width: 100%;"
+                                >
+                                    <el-icon><Upload /></el-icon>
+                                    {{ loading ? '上传中...' : '上传图片' }}
+                                </el-button>
+                            </el-form-item>
+                        </el-form>
+                    </el-card>
+                </el-col>
+            </el-row>
+        </el-main>
+    </el-container>
 </template>
 
 <style scoped>
-.upload {
-    width: 100%;
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: flex-start;
-    height: 91%;
-    background-color: #f0f0f0;
-}
-
-.left {
-    display: flex;
-    flex-direction: column;
-}
-
-.uploadButton {
-    width: 48px;
-    height: 48px;
-    margin-left: 10px;
-    margin-right: auto;
-    margin-top: 10px;
-    margin-bottom: 10px;
-}
-
-.left,
-.right {
+.upload-container {
+    min-height: 90vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     padding: 20px;
 }
 
+.preview-card, .form-card {
+    height: 100%;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
 
-.left {
-    flex: 1;
+.card-header {
     display: flex;
     justify-content: center;
     align-items: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
 }
 
-#image-viewer {
-    width: 50vw;
-    height: 83vh;
+.preview-container {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.el-image {
     overflow: scroll;
-    position: relative;
-    border: 1px solid #ccc;
-    padding: 0;
 }
 
-button {
-    padding: 10px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+.el-upload {
+    border: 2px dashed #d9d9d9;
+    border-radius: 8px;
     cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
 }
 
-@media (max-width: 600px) {
-    #image-viewer {
-        width: 90vw;
-        height: 70vh;
-    }
+.el-upload:hover {
+    border-color: #409eff;
 }
 
-#image-viewer img {
-    width: 100%;
-    height: auto;
-    position: absolute;
-    cursor: grab;
-    object-fit: cover;
-    padding: 0;
+.el-form {
+    padding: 20px 0;
 }
 
-.right {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    width: 90vw;
+.el-form-item {
+    margin-bottom: 24px;
 }
 
-h4 {
-    margin: 0 0 10px 0;
-    font-size: 24px;
+.el-button {
+    border-radius: 8px;
+    font-size: 16px;
+    padding: 12px 24px;
+    transition: all 0.3s;
 }
 
-hr {
-    margin: 10px 0;
-    border: 1px solid #ccc;
+.el-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
 }
 
-.row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 10px;
-}
-
-
-.right-row {
-    display: flex;
-}
-
-.row-button {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 10px;
-}
-
-@media (max-width: 600px) {
-    .upload {
-        flex-direction: column;
-        height: auto;
-    }
-
-    .row {
-        display: flex;
-        flex-direction: column;
-    }
-
-    .left,
-    .right {
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .upload-container {
         padding: 10px;
     }
-
-    .right-row {
-        margin-top: 10px;
+    
+    .el-row {
+        flex-direction: column;
+    }
+    
+    .el-col {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-bottom: 20px;
+    }
+    
+    .preview-card, .form-card {
+        height: auto;
+        min-height: auto;
+    }
+    
+    .preview-container {
+        margin-top: 15px;
+    }
+    
+    .el-image {
+        max-height: 300px !important;
     }
 }
 
-select,
-input[type='date'] {
-    padding: 5px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
-
-input[type='text'] {
-    width: 100%;
-    padding: 5px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    margin-bottom: 10px;
-}
-
-textarea {
-    width: 100%;
-    height: 500px;
-    padding: 10px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    resize: none;
-}
-
-input[type='checkbox'].switch {
-    padding-left: 5px;
-    margin-top: auto;
-    margin-bottom: auto;
-    outline: none;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    position: relative;
-    width: 40px;
-    height: 20px;
-    background: #ccc;
-    border-radius: 10px;
-    transition: border-color .3s, background-color .3s;
-}
-
-label {
-    margin-top: auto;
-    margin-bottom: auto;
-}
-
-input[type='checkbox'].switch::after {
-    content: '';
-    display: inline-block;
-    width: 1rem;
-    height: 1rem;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow: 0, 0, 2px, #999;
-    transition: .4s;
-    top: 2px;
-    position: absolute;
-    left: 2px;
-}
-
-input[type='checkbox'].switch:checked {
-    background: rgb(19, 206, 102);
-}
-
-/* 当input[type=checkbox]被选中时：伪元素显示下面样式 位置发生变化 */
-input[type='checkbox'].switch:checked::after {
-    content: '';
-    position: absolute;
-    left: 55%;
-    top: 2px;
-}
-
-.loading-screen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 9999;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.spinner {
-    width: 50px;
-    height: 50px;
-    border: 6px solid #ccc;
-    border-top-color: #333;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
+/* 竖屏设备优化 */
+@media (max-width: 768px) and (orientation: portrait) {
+    .upload-container {
+        min-height: 100vh;
+        padding: 15px;
+    }
+    
+    .el-main {
+        padding: 0;
+    }
+    
+    .el-row {
+        height: auto !important;
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .preview-card {
+        order: 1;
+    }
+    
+    .form-card {
+        order: 2;
+    }
+    
+    .el-form {
+        padding: 15px 0;
+    }
+    
+    .el-form-item {
+        margin-bottom: 20px;
     }
 }
 </style>
