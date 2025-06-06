@@ -28,7 +28,7 @@ interface imgData {
 const loadImg = () => {
     GetBlobImgSrc("/image/" + imgSrc.value).then((res) => {
         blobSrc.value = res;
-        fetchDataAutoRetry(`/api/get/image/`, { src: imgSrc.value }, 'POST').then((res) => {
+        fetchDataAutoRetry(`/api/image/get/`, { src: imgSrc.value }, 'POST').then((res) => {
             const r = res as imgData;
             imgTitle.value = r.title;
             imgText.value = r.text;
@@ -58,7 +58,7 @@ const submitEdit = () => {
         type: typeSelected.value,
         date: imgDate.value,
     };
-    fetchDataAutoRetry(`/api/set/image/`, data, 'POST').then(() => {
+    fetchDataAutoRetry(`/api/image/set/`, data, 'POST').then(() => {
         enableEdit.value = false;
         loadImg();
     }).catch(() => {
@@ -80,7 +80,7 @@ const submitEditText = () => {
         src: imgSrc.value,
         text: imgText.value
     };
-    fetchDataAutoRetry(`/api/set/text/`, data, 'POST').then(() => {
+    fetchDataAutoRetry(`/api/text/set/`, data, 'POST').then(() => {
         enableEditText.value = false;
         loadImg();
     }).catch(() => {

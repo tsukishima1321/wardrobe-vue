@@ -49,7 +49,7 @@ const submitEdit = async () => {
     formData.append('date', imgDate.value);
     formData.append('doOCR', isOCR.value ? 'true' : 'false');
 
-    const url = '/api/new/image/';
+    const url = '/api/image/new/';
     const token = localStorage.getItem('wardrobe-access-token');
     if (!token) {
         router.push('/login');
