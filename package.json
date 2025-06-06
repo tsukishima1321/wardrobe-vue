@@ -11,6 +11,7 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
     "element-plus": "^2.9.11",
     "lodash": "^4.17.21",
     "masonry-layout": "^4.2.2",

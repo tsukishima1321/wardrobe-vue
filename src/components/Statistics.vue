@@ -51,10 +51,22 @@ updateStat();
                     <el-statistic title="总数" :value=overallTotal />
                 </el-col>
                 <el-col :span="8">
-                    <el-statistic title="本月新增" :value=overallLastMonth />
+                    <el-statistic title="本月新增" :value=overallLastMonth>
+                        <template #prefix v-if="overallLastMonth && overallLastMonth > 0">
+                            <el-icon style="vertical-align: -0.125em;color: var(--el-color-success);">
+                                <CaretTop />
+                            </el-icon>
+                        </template>
+                    </el-statistic>
                 </el-col>
                 <el-col :span="8">
-                    <el-statistic title="本年新增" :value=overallLastYear />
+                    <el-statistic title="本年新增" :value=overallLastYear>
+                        <template #prefix v-if="overallLastYear && overallLastYear > 0">
+                            <el-icon style="vertical-align: -0.125em;color: var(--el-color-success);">
+                                <CaretTop />
+                            </el-icon>
+                        </template>
+                    </el-statistic>
                 </el-col>
             </el-row>
         </el-card>

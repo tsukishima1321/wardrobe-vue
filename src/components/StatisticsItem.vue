@@ -21,21 +21,35 @@ const lastMonthAmount = ref(props.lastMonthAmount);
                 <el-statistic title="总数" :value=totalAmount />
             </el-col>
             <el-col :span="8">
-                <el-statistic title="本月新增" :value=lastYearAmount />
+                <el-statistic title="本月新增" :value=lastMonthAmount>
+                    <template #prefix v-if="lastMonthAmount && lastMonthAmount > 0">
+                            <el-icon style="vertical-align: -0.125em;color: var(--el-color-success);">
+                                <CaretTop />
+                            </el-icon>
+                    </template>
+                </el-statistic>
             </el-col>
             <el-col :span="8">
-                <el-statistic title="本年新增" :value=lastMonthAmount />
+                <el-statistic title="本年新增" :value=lastYearAmount>
+                    <template #prefix v-if="lastYearAmount && lastYearAmount > 0">
+                        <el-icon style="vertical-align: -0.125em;color: var(--el-color-success);">
+                            <CaretTop />
+                        </el-icon>
+                    </template>
+                </el-statistic>
             </el-col>
         </el-row>
     </el-card>
 </template>
 <style scoped>
 h3 {
-    margin:0;
+    margin: 0;
 }
+
 .statheader {
     padding: 0;
 }
+
 .el-card {
     margin: 1%;
     text-align: center;

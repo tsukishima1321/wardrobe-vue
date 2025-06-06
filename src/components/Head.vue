@@ -1,8 +1,6 @@
 <script setup lang="ts">
 
 import favicon from '@/assets/icons/favicon.ico';
-import iconSearch from '@/assets/icons/search.svg';
-import iconUpload from '@/assets/icons/upload.svg';
 
 </script>
 
@@ -11,8 +9,8 @@ import iconUpload from '@/assets/icons/upload.svg';
         <el-menu-item index="/" class="logo-menu-item">
             <img style="width: 48px" :src="favicon" alt="静寂的壁橱" />
         </el-menu-item>
-        <el-menu-item index="/search"><img style="width: 16px" :src="iconSearch">搜索</el-menu-item>
-        <el-menu-item index="/upload"><img style="width: 16px" :src="iconUpload">上传</el-menu-item>
+        <el-menu-item index="/search"><el-icon><Search /></el-icon>搜索</el-menu-item>
+        <el-menu-item index="/upload"><el-icon><UploadFilled /></el-icon>上传</el-menu-item>
     </el-menu>
 </template>
 
