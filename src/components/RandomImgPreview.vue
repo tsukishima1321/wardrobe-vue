@@ -56,51 +56,58 @@ const openDetail = () => {
 </script>
 
 <template>
-    <div id="random-img-preview">
+    <el-card id="random-img-preview">
         <div id="image-viewer">
-            <img id="viewedImage" :src="pickedImg">
+            <el-image :src="pickedImg"></el-image>
         </div>
-        <select id="typeSelected" v-model="typeSelected">
-            <option>不限</option>
-            <option v-for="type in types" :value="type">{{ type }}</option>
-        </select>
-        <button id="randomButton" @click="pickImg">换一张</button>
-        <button id="detailButton" @click="openDetail">查看详情</button>
-    </div>
+        <el-row>
+            <el-select id="typeSelected" v-model="typeSelected">
+                <el-option :value="'不限'">不限</el-option>
+                <el-option v-for="type in types" :value="type">{{ type }}</el-option>
+            </el-select>
+            <el-button id="randomButton" @click="pickImg">换一张</el-button>
+            <el-button id="detailButton" @click="openDetail">查看详情</el-button>
+        </el-row>
+
+    </el-card>
 </template>
 
 <style scoped>
-img {
-    max-width: 100%;
+#random-img-preview {
+    margin-right: 5px;
+}
+
+.el-image {
     height: auto;
     object-fit: cover;
+    padding: 0;
+    margin: 0;
+    width: 80%;
 }
 
 #image-viewer {
-    height: 60vh;
-    width: 30vw;
+    height: 70vh;
+    width: 33vw;
     overflow: scroll;
     text-align: center;
     margin-bottom: 5px;
 }
 
-button {
-    padding: 5px;
-    margin-top: 5px;
-    margin-left: 5px;
-    cursor: pointer;
+.el-select {
+    width: 200px;
+    margin-right: auto;
 }
 
-select {
-    padding: 5px;
+.el-row {
     margin-top: 5px;
-}
-
-#image-info {
-    text-align: center;
 }
 
 @media (max-width: 600px) {
+    .el-select {
+        width: 100px;
+        margin-right: auto;
+    }
+
     #random-img-preview {
         margin-bottom: 20px;
     }

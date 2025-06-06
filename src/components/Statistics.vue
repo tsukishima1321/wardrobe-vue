@@ -42,20 +42,39 @@ updateStat();
 
 <template>
     <div id="statistics">
-        <div id="overall-statistics">
-            <h2>统计：</h2>
-            <p>总数: <span id="overall-total">{{ overallTotal }}</span></p>
-            <p>本年新增: <span id="overall-last-year">{{ overallLastYear }}</span></p>
-            <p>本月新增: <span id="overall-last-month">{{ overallLastMonth }}</span></p>
-        </div>
+        <el-card id="overall-statistics">
+            <template #header>
+                <h2>统计：</h2>
+            </template>
+            <el-row>
+                <el-col :span="8">
+                    <el-statistic title="总数" :value=overallTotal />
+                </el-col>
+                <el-col :span="8">
+                    <el-statistic title="本月新增" :value=overallLastMonth />
+                </el-col>
+                <el-col :span="8">
+                    <el-statistic title="本年新增" :value=overallLastYear />
+                </el-col>
+            </el-row>
+        </el-card>
         <h2>分类统计：</h2>
-        <div id="types-statistics">
-            <StatisticsItem v-for="type in typesStatistics" :type="type.type" :totalAmount="type.totalAmount" :lastYearAmount="type.lastYearAmount" :lastMonthAmount="type.lastMonthAmount" />
-        </div>
+        <el-col id="types-statistics">
+            <StatisticsItem v-for="type in typesStatistics" :type="type.type" :totalAmount="type.totalAmount"
+                :lastYearAmount="type.lastYearAmount" :lastMonthAmount="type.lastMonthAmount" />
+        </el-col>
     </div>
 </template>
 
 <style scoped>
+h2 {
+    margin: 0;
+}
+
+#overall-statistics {
+    margin-bottom: 10px;
+}
+
 #statistics {
     margin-bottom: 20px;
 }
@@ -65,10 +84,8 @@ updateStat();
 }
 
 #types-statistics {
-    height: 60vh;
+    height: 65vh;
     width: auto;
-    display: flex;
-    flex-wrap: wrap;
     overflow-y: scroll;
 }
 
@@ -79,15 +96,8 @@ updateStat();
 }
 
 #types-statistics div {
-    width: 48%;
     margin: 1%;
     padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
     text-align: center;
-}
-
-#types-statistics div p {
-    margin: 5px 0;
 }
 </style>

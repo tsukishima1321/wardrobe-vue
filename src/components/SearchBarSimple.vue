@@ -11,24 +11,36 @@ function sendValue() {
 </script>
 
 <template>
-    <div class="search">
-        <input type="text" id="searchText" placeholder="输入关键字" @change="sendValue" v-model="keyword" />
-        <button id="searchButton" @click="sendValue">搜索</button>
-    </div>
+    <el-card class="search">
+        <el-row>
+            <el-input id="searchText" placeholder="输入关键字" @change="sendValue" v-model="keyword" />
+            <el-button id="searchButton" @click="sendValue">搜索</el-button>
+        </el-row>
+
+    </el-card>
 </template>
 
 <style scoped>
 .search {
+    margin-right: 5px;
     margin-bottom: 20px;
 }
 
-input {
+.el-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.el-input {
     width: 80%;
     padding: 5px;
     margin-right: 5px;
 }
 
-button {
-    padding: 5px;
+@media (max-width: 600px) {
+    .el-input {
+        width: 60%;
+    }
 }
 </style>

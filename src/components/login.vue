@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from "vue-router";
+import { ElMessage } from 'element-plus';
+import 'element-plus/dist/index.css';
 
 const router = useRouter()
 
@@ -27,89 +29,47 @@ const handleSubmit = async () => {
         const data = await response.json();
         localStorage.setItem('wardrobe-access-token', data.access);
         localStorage.setItem('wardrobe-refresh-token', data.refresh);
-        alert('Login successful');
+        ElMessage.success('登录成功');
         router.push('/');
     } catch (error) {
+        ElMessage.error('登录失败，请检查用户名或密码');
         console.error('There was a problem with the login request:', error);
     }
 };
 </script>
 
 <template>
-    <div class="login-container">
-            <h2>Login</h2>
-            <form @submit.prevent="handleSubmit" method="post">
-                <div class="form-group">
-                    <label for="username">Username:</label>
-                    <input type="text" id="username" v-model="username" required />
-                </div>
-                <div class="form-group">
-                    <label for="password">Password:</label>
-                    <input type="password" id="password" v-model="password" required />
-                </div>
-                <button type="submit">Login</button>
-            </form>
-        </div>
+    <el-col>
+        <el-card shadow="hover">
+            <h2 style="text-align:center; margin-bottom: 24px;">登录</h2>
+            <el-form @submit.prevent="handleSubmit" @submit.native.prevent="handleSubmit" >
+                <el-form-item label="用户名" label-width="60px">
+                    <el-input v-model="username" placeholder="请输入用户名" clearable />
+                </el-form-item>
+                <el-form-item label="密码" label-width="60px">
+                    <el-input v-model="password" type="password" placeholder="请输入密码" show-password clearable />
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" style="width:100%;" @click="handleSubmit">登录</el-button>
+                </el-form-item>
+            </el-form>
+        </el-card>
+    </el-col>
 </template>
 
 <style scoped>
-.login-container {
-    margin-left: auto;
-    margin-right: auto;
-    margin-top: 100px;
-    background-color: #fff;
+.el-col {
+    display: flex;
+    align-items: flex-start;
+    width: 100%;
+}
+
+.el-card {
+    width: 100%;
+    height: 300px;
     padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    width: 70%;
     max-width: 400px;
-    text-align: center;
-}
-
-h2 {
-    margin-bottom: 20px;
-    color: #333;
-}
-
-.form-group {
-    margin-bottom: 15px;
-    text-align: left;
-}
-
-label {
-    display: block;
-    margin-bottom: 5px;
-    color: #555;
-}
-
-input[type="text"],
-input[type="password"] {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
-}
-
-button[type="submit"] {
-    width: 100%;
-    padding: 10px;
-    background-color: #007bff;
-    border: none;
-    border-radius: 4px;
-    color: #fff;
-    font-size: 16px;
-    cursor: pointer;
-}
-
-button[type="submit"]:hover {
-    background-color: #0056b3;
-}
-
-/* Media Queries for responsive design */
-@media (min-width: 768px) {
-    .login-container {
-        width: 400px;
-    }
+    margin: auto;
+    margin-top: 40px;
 }
 </style>

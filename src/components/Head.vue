@@ -1,57 +1,32 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router';
 
 import favicon from '@/assets/icons/favicon.ico';
 import iconSearch from '@/assets/icons/search.svg';
 import iconUpload from '@/assets/icons/upload.svg';
+
 </script>
 
 <template>
-    <div class="head">
-        <h1>静寂的壁橱</h1>
-        <nav>
-            <img :src="favicon" alt="logo">
-            <RouterLink to="/">首页</RouterLink>
-            <img :src="iconSearch" alt="logo">
-            <RouterLink to="/search">搜索</RouterLink>
-            <img :src="iconUpload" alt="logo">
-            <RouterLink to="/upload">上传</RouterLink>
-        </nav>
-    </div>
+    <el-menu :default-active="'/'" class="headermenu" mode="horizontal" :ellipsis="false" :router="true">
+        <el-menu-item index="/" class="logo-menu-item">
+            <img style="width: 48px" :src="favicon" alt="静寂的壁橱" />
+        </el-menu-item>
+        <el-menu-item index="/search"><img style="width: 16px" :src="iconSearch">搜索</el-menu-item>
+        <el-menu-item index="/upload"><img style="width: 16px" :src="iconUpload">上传</el-menu-item>
+    </el-menu>
 </template>
 
 <style scoped>
 .head {
     width: 100%;
     margin: 0;
-    height: 5vh;
-    display: flex;
-    flex-direction: row;
-    background-color: rgb(196, 210, 255);
 }
 
-nav {
-    margin-top: auto;
-    margin-bottom: auto;
-    color: black;
-    text-decoration: none;
+.el-menu--horizontal {
+    width: 100%;
 }
 
-h1 {
-    font-size: 16px;
-    margin: 0;
-    margin-left: 20px;
-    margin-right: 10px;
-    margin-top: auto;
-    margin-bottom: auto;
-}
-
-img {
-    width: 20px;
-    height: 20px;
-    margin-top: auto;
-    margin-bottom: auto;
-    margin-left: 10px;
-    margin-right: 10px;
+.el-menu--horizontal>.el-menu-item:nth-child(1) {
+    margin-right: auto;
 }
 </style>

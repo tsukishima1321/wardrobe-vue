@@ -12,24 +12,32 @@ const lastYearAmount = ref(props.lastYearAmount);
 const lastMonthAmount = ref(props.lastMonthAmount);
 </script>
 <template>
-    <div class="type-statistic">
-        <h3>{{ type }}</h3>
-        <p>总数: <span>{{ totalAmount }}</span></p>
-        <p>本年新增: <span>{{ lastYearAmount }}</span></p>
-        <p>本月新增: <span>{{ lastMonthAmount }}</span></p>
-    </div>
+    <el-card class="type-statistic">
+        <template #header>
+            <h3>{{ type }}</h3>
+        </template>
+        <el-row>
+            <el-col :span="8">
+                <el-statistic title="总数" :value=totalAmount />
+            </el-col>
+            <el-col :span="8">
+                <el-statistic title="本月新增" :value=lastYearAmount />
+            </el-col>
+            <el-col :span="8">
+                <el-statistic title="本年新增" :value=lastMonthAmount />
+            </el-col>
+        </el-row>
+    </el-card>
 </template>
 <style scoped>
-div {
-    width: 48%;
-    margin: 1%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    text-align: center;
+h3 {
+    margin:0;
 }
-
-div p {
-    margin: 5px 0;
+.statheader {
+    padding: 0;
+}
+.el-card {
+    margin: 1%;
+    text-align: center;
 }
 </style>
