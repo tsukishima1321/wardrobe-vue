@@ -1,5 +1,6 @@
-<script setup lang="ts">
-import { computed, ref } from 'vue';
+<script lang="ts" setup>
+import { ref } from 'vue'
+import type { ComponentSize } from 'element-plus'
 
 const { maxPage } = defineProps({
     maxPage: {
@@ -12,82 +13,58 @@ const emits = defineEmits<{
     pageChanged: [page: number]
 }>();
 
-const currentPage = ref(1);
-const visiblePages = computed(() => {
-    const pages = Array<string>();
-    let startPage = Math.max(1, currentPage.value - 2);
-    let endPage = Math.min(maxPage, currentPage.value + 2);
-    for (let i = 1; i <= maxPage; i++) {
-        if (i > 0 && i <= 2 || i >= startPage && i <= endPage || i >= maxPage - 1 && i <= maxPage) {
-            pages.push(i.toString());
-        } else {
-            pages.push('...');
-            if (i == 3) {
-                i = startPage - 1;
-            } else if (i == endPage + 1) {
-                i = maxPage - 2;
-            }
-        }
-    }
-    return pages;
-});
+const currentPage = ref(1)
+const background = ref(false)
+const disabled = ref(false)
 
-const previousPage = () => {
-    if (currentPage.value > 1) {
-        currentPage.value--;
-        emits('pageChanged', currentPage.value);
-    }
+const handleCurrentChange = (val: number) => {
+    emits('pageChanged', val);
 }
-
-const nextPage = () => {
-    if (currentPage.value < maxPage) {
-        currentPage.value++;
-        emits('pageChanged', currentPage.value);
-    }
-}
-
-const goToPage = (event: Event) => {
-    const target = event.target as HTMLButtonElement;
-    const pageNumber = Number(target.textContent);
-    if (pageNumber) {
-        currentPage.value = pageNumber;
-        emits('pageChanged', currentPage.value);
-    }
-}
-
-const goToPageInput = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    const pageNumber = Number(target.value);
-    if (pageNumber >= 1 && pageNumber <= maxPage) {
-        currentPage.value = pageNumber;
-        emits('pageChanged', currentPage.value);
-    }
-}
-
 </script>
 
 <template>
-    <div id="pagination">
-        <button @click="previousPage" id="prevButton" :disabled="currentPage === 1">&lt;&lt;</button>
-        <span id="pageNumbers">
-            <button v-for="page in visiblePages" :key="page" @click="goToPage"
-                :class="{ active: currentPage == Number(page), omit: page == '...' }">{{ page }}</button>
-        </span>
-        <button @click="nextPage" id="nextButton" :disabled="currentPage === maxPage">&gt;&gt;</button>
-        <input @change="goToPageInput" type="number" id="pageNumberInput" min="1" max="99">
+    <div class="pagination-block">
+        <el-pagination v-model:current-page="currentPage" :disabled="disabled" :background="background"
+            :pager-count="12" layout="prev, pager, next, jumper" :page-count="maxPage"
+            @current-change="handleCurrentChange" />
     </div>
 </template>
 
+<style>
+@media (max-width: 600px) {
+    .pagination-block>.el-pagination>.el-pager {
+        flex-direction: column;
+    }
+
+    .pagination-block>.el-pagination>.el-pagination__jump {
+        margin: 0;
+        flex-direction: column;
+    }
+
+    .pagination-block>.el-pagination>.el-pagination__jump>.el-input {
+        margin: 0;
+        margin-top: 5px;
+        margin-right: 2px;
+        width: 30px;
+    }
+
+    .pagination-block>.el-pagination>.el-pagination__jump>.el-pagination__goto {
+        display: none;
+    }
+}
+</style>
+
 <style scoped>
-.omit {
-    border: none;
+.demo-pagination-block+.demo-pagination-block {
+    margin-top: 10px;
+}
+
+.demo-pagination-block .demonstration {
+    margin-bottom: 16px;
 }
 
 @media (min-width:600px) {
-    #pagination {
-        display: flex;
-        justify-content: center;
-        align-items: center;
+    .pagination-block {
         position: fixed;
         bottom: 0;
         width: 100%;
@@ -96,25 +73,13 @@ const goToPageInput = (event: Event) => {
         box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
     }
 
-    #pagination button,
-    #pagination #pageNumberInput {
-        margin: 0 5px;
-    }
-
-    .active {
-        background-color: #b1d6ff;
-        color: rgb(0, 0, 0);
-    }
-
-    #pagination #pageNumbers {
-        display: flex;
+    .el-pagination {
+        justify-content: center;
     }
 }
 
 @media (max-width: 600px) {
-    #pagination {
-        flex-direction: column;
-        align-items: flex-end;
+    .pagination-block {
         right: 0;
         bottom: auto;
         top: 50%;
@@ -128,20 +93,18 @@ const goToPageInput = (event: Event) => {
         box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
     }
 
-    #pagination #pageNumbers {
-        display: flex;
+    .el-pagination {
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: center;
+    }
+
+    .el-pager {
         flex-direction: column;
     }
 
-    .active {
-        background-color: #b1d6ff;
-        color: white;
-    }
-
-    #pagination button,
-    #pagination #pageNumberInput {
-        margin: 5px 0;
-        max-width: 2.5em;
+    .pagination-block>.el-pagination>.el-pagination__jump {
+        flex-direction: column;
     }
 }
 </style>
