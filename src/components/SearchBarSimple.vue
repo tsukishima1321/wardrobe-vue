@@ -14,7 +14,7 @@ function sendValue() {
     <el-card class="search">
         <el-row>
             <el-input id="searchText" placeholder="输入关键字" @change="sendValue" v-model="keyword" />
-            <el-button id="searchButton" @click="sendValue">搜索</el-button>
+            <el-button id="searchButton" @click="sendValue" type="primary">搜索</el-button>
         </el-row>
 
     </el-card>

@@ -58,7 +58,7 @@ const search = (keyword: string) => {
 
 <style scoped>
 .body {
-    height: 80vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     display: grid;
     grid-template-columns: 70vw 25vw;
     padding: 10px;
@@ -112,6 +112,7 @@ const search = (keyword: string) => {
     }
 
     #right-column {
+        margin-left: 0;
         width: 100%;
     }
 

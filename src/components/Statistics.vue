@@ -70,11 +70,16 @@ updateStat();
                 </el-col>
             </el-row>
         </el-card>
-        <h2>分类统计：</h2>
-        <el-col id="types-statistics">
-            <StatisticsItem v-for="type in typesStatistics" :type="type.type" :totalAmount="type.totalAmount"
-                :lastYearAmount="type.lastYearAmount" :lastMonthAmount="type.lastMonthAmount" />
-        </el-col>
+        <h2 style="color: azure;">分类统计：</h2>
+        <div>
+            <el-scrollbar>
+                <el-col id="types-statistics">
+                    <StatisticsItem v-for="type in typesStatistics" :type="type.type" :totalAmount="type.totalAmount"
+                        :lastYearAmount="type.lastYearAmount" :lastMonthAmount="type.lastMonthAmount" />
+                </el-col>
+            </el-scrollbar>
+        </div>
+
     </div>
 </template>
 
@@ -98,18 +103,11 @@ h2 {
 #types-statistics {
     height: 65vh;
     width: auto;
-    overflow-y: scroll;
 }
 
 @media (max-width: 600px) {
     #types-statistics {
         height: auto;
     }
-}
-
-#types-statistics div {
-    margin: 1%;
-    padding: 10px;
-    text-align: center;
 }
 </style>

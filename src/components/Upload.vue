@@ -154,17 +154,12 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
                                 <span>图片预览</span>
                             </div>
                         </template>
-                          <!-- 上传组件 -->
-                        <el-upload
-                            v-model:file-list="fileList"
-                            :on-change="handleFileChange"
-                            :on-remove="handleRemove"
-                            :limit="1"
-                            accept="image/*"
-                            list-type="picture-card"
-                            :auto-upload="false"
-                        >
-                            <el-icon><Plus /></el-icon>
+                        <!-- 上传组件 -->
+                        <el-upload v-model:file-list="fileList" :on-change="handleFileChange" :on-remove="handleRemove"
+                            :limit="1" accept="image/*" list-type="picture-card" :auto-upload="false">
+                            <el-icon>
+                                <Plus />
+                            </el-icon>
                             <template #tip>
                                 <div class="el-upload__tip">
                                     只能上传图片文件
@@ -174,12 +169,8 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
 
                         <!-- 图片预览 -->
                         <div v-if="previewImageUrl" class="preview-container">
-                            <el-image
-                                :src="previewImageUrl"
-                                fit="contain"
-                                style="width: 100%; max-height: 500px;"
-                                :preview-src-list="[previewImageUrl]"
-                            />
+                            <el-image :src="previewImageUrl" fit="contain" style="width: 100%; max-height: 500px;"
+                                :preview-src-list="[previewImageUrl]" />
                         </div>
                     </el-card>
                 </el-col>
@@ -196,61 +187,34 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
                         <el-form :model="{ imgTitle, typeSelected, imgDate, isOCR }" label-width="100px" size="large">
                             <!-- 图片标题 -->
                             <el-form-item label="图片标题" required>
-                                <el-input
-                                    v-model="imgTitle"
-                                    placeholder="请输入图片标题"
-                                    clearable
-                                />
+                                <el-input v-model="imgTitle" placeholder="请输入图片标题" clearable />
                             </el-form-item>
 
                             <!-- 图片类型 -->
                             <el-form-item label="图片类型" required>
-                                <el-select
-                                    v-model="typeSelected"
-                                    placeholder="请选择图片类型"
-                                    style="width: 100%;"
-                                    clearable
-                                >
-                                    <el-option
-                                        v-for="type in types"
-                                        :key="type"
-                                        :label="type"
-                                        :value="type"
-                                    />
+                                <el-select v-model="typeSelected" placeholder="请选择图片类型" style="width: 100%;" clearable>
+                                    <el-option v-for="type in types" :key="type" :label="type" :value="type" />
                                 </el-select>
                             </el-form-item>
 
                             <!-- 图片日期 -->
                             <el-form-item label="图片日期">
-                                <el-date-picker
-                                    v-model="imgDate"
-                                    type="date"
-                                    placeholder="选择日期"
-                                    style="width: 100%;"
-                                    format="YYYY-MM-DD"
-                                    value-format="YYYY-MM-DD"
-                                />
+                                <el-date-picker v-model="imgDate" type="date" placeholder="选择日期" style="width: 100%;"
+                                    format="YYYY-MM-DD" value-format="YYYY-MM-DD" />
                             </el-form-item>
 
                             <!-- OCR 开关 -->
                             <el-form-item label="启用OCR">
-                                <el-switch
-                                    v-model="isOCR"
-                                    active-text="是"
-                                    inactive-text="否"
-                                />
+                                <el-switch v-model="isOCR" active-text="是" inactive-text="否" />
                             </el-form-item>
 
                             <!-- 提交按钮 -->
                             <el-form-item>
-                                <el-button
-                                    type="primary"
-                                    size="large"
-                                    :loading="loading"
-                                    @click="submitEdit"
-                                    style="width: 100%;"
-                                >
-                                    <el-icon><Upload /></el-icon>
+                                <el-button type="primary" size="large" :loading="loading" @click="submitEdit"
+                                    style="width: 100%;">
+                                    <el-icon>
+                                        <Upload />
+                                    </el-icon>
                                     {{ loading ? '上传中...' : '上传图片' }}
                                 </el-button>
                             </el-form-item>
@@ -269,7 +233,8 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
     padding: 20px;
 }
 
-.preview-card, .form-card {
+.preview-card,
+.form-card {
     height: 100%;
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -333,26 +298,27 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
     .upload-container {
         padding: 10px;
     }
-    
+
     .el-row {
         flex-direction: column;
     }
-    
+
     .el-col {
         width: 100% !important;
         max-width: 100% !important;
         margin-bottom: 20px;
     }
-    
-    .preview-card, .form-card {
+
+    .preview-card,
+    .form-card {
         height: auto;
         min-height: auto;
     }
-    
+
     .preview-container {
         margin-top: 15px;
     }
-    
+
     .el-image {
         max-height: 300px !important;
     }
@@ -364,29 +330,29 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
         min-height: 100vh;
         padding: 15px;
     }
-    
+
     .el-main {
         padding: 0;
     }
-    
+
     .el-row {
         height: auto !important;
         flex-direction: column;
         gap: 20px;
     }
-    
+
     .preview-card {
         order: 1;
     }
-    
+
     .form-card {
         order: 2;
     }
-    
+
     .el-form {
         padding: 15px 0;
     }
-    
+
     .el-form-item {
         margin-bottom: 20px;
     }

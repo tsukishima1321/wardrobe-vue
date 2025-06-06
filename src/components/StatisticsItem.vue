@@ -46,12 +46,8 @@ h3 {
     margin: 0;
 }
 
-.statheader {
-    padding: 0;
-}
-
 .el-card {
-    margin: 1%;
+    margin-top: 5px;
     text-align: center;
 }
 </style>
