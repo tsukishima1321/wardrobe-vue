@@ -15,7 +15,8 @@ const emits = defineEmits<{
     selectNone: [],
     delete: [],
     download: [],
-    moveCategory: [typename: string]
+    moveCategory: [typename: string],
+    switchMode: [isPictureMode: boolean]
 }>();
 
 // 全选状态
@@ -24,6 +25,8 @@ const isAllSelected = ref(false)
 const showMoveCategoryDialog = ref(false)
 // 选中的分类
 const selectedCategory = ref('')
+
+const isPictureMode = ref<boolean>(true)
 
 // 切换全选状态
 const toggleSelectAll = () => {
@@ -58,6 +61,10 @@ const confirmMoveCategory = () => {
         showMoveCategoryDialog.value = false
     }
 }
+
+const changeMode = (mode: boolean) => {
+    emits('switchMode', mode);
+}
 </script>
 
 <template>
@@ -77,6 +84,8 @@ const confirmMoveCategory = () => {
             <el-button type="warning" :icon="FolderAdd" @click="showMoveCategory">
                 分类
             </el-button>
+            <el-switch v-model="isPictureMode" style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
+                active-text="图片" inactive-text="表格" @change="changeMode" />
         </el-space>
 
         <!-- 移动分类对话框 -->
@@ -123,7 +132,7 @@ const confirmMoveCategory = () => {
 
 @media (max-width: 768px) {
     .search-toolbar {
-        margin-left: auto;
+        width: 90vw;
         margin-bottom: 20px;
     }
 

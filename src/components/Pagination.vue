@@ -24,7 +24,7 @@ const handleCurrentChange = (val: number) => {
 <template>
     <div class="pagination-block">
         <el-pagination v-model:current-page="currentPage" :disabled="disabled" :background="background"
-            :pager-count="12" layout="prev, pager, next, jumper" :page-count="maxPage"
+            :pager-count="11" layout="prev, pager, next, jumper" :page-count="maxPage"
             @current-change="handleCurrentChange" />
     </div>
 </template>
@@ -64,6 +64,7 @@ const handleCurrentChange = (val: number) => {
 
 @media (min-width:600px) {
     .pagination-block {
+        z-index: 1000;
         position: fixed;
         bottom: 0;
         width: 100%;
@@ -79,6 +80,7 @@ const handleCurrentChange = (val: number) => {
 
 @media (max-width: 600px) {
     .pagination-block {
+        z-index: 1000;
         right: 0;
         bottom: auto;
         top: 50%;

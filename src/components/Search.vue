@@ -1,7 +1,7 @@
 <script setup lang="ts">
 
 import { useRouter } from "vue-router";
-import { ref, useTemplateRef } from 'vue';
+import { computed, ref, useTemplateRef } from 'vue';
 import { fetchDataAutoRetry, GetBlobImgSrc } from "@/token";
 import SearchBar from "./SearchBar.vue";
 import SearchToolBar from "./SearchToolBar.vue";
@@ -17,7 +17,10 @@ const router = useRouter();
 const keyword = ref(router.currentRoute.value.params.keyword as string);
 const typeList = ref<Array<string>>([]);
 const totalPage = ref(99);
-const blobImgList = ref<Array<{ blobSrc: string, oriSrc: string, title: string, checked: boolean }>>([]);
+const blobImgList = ref<Array<{ blobSrc: string, oriSrc: string, title: string, checked: boolean, date: Date }>>([]);
+const isPictureMode = ref(true);
+
+let pageSize = 20
 
 fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
     typeList.value = res as Array<string>;
@@ -44,7 +47,7 @@ const pageChanged = (newPage: number) => {
 
 interface SearchResponse {
     totalPage: number;
-    hrefList: Array<{ src: string, title: string }>;
+    hrefList: Array<{ src: string, title: string, date: Date }>;
 }
 
 const masonryContainer = useTemplateRef('masonryContainer');
@@ -70,8 +73,11 @@ const updateSearchPara = (params: SearchParams) => {
     updateSearch();
 }
 
-const updateSearch = debounce(() => {
+const updateSearch = debounce(async () => {
     console.log(searchParams);
+    if (pageSize === 100) {
+        isPictureMode.value = false;
+    }
     let para = {
         searchKey: searchParams.keyword,
         page: searchParams.page,
@@ -81,25 +87,40 @@ const updateSearch = debounce(() => {
         byFullText: searchParams.searchByContent,
         orderBy: searchParams.sortBy,
         order: searchParams.sortOrder,
-        type: searchParams.typeFilter.join('^')
+        type: searchParams.typeFilter.join('^'),
+        pageSize: pageSize
     };
-    let data = fetchDataAutoRetry('/api/search/', para) as Promise<SearchResponse>;
-    data.then(data => {
-        blobImgList.value = [];
-        totalPage.value = data.totalPage;
-        console.log(data);
-        for (let item of data.hrefList) {
-            GetBlobImgSrc("/image/thumbnails/" + item.src).then((blobSrc) => {
-                blobImgList.value.push({ blobSrc: blobSrc, oriSrc: item.src, title: item.title, checked: false });
-            }).catch(() => {
-                router.push('/login');
-            });
-        }
-        if (masonry) {
-            masonry?.layout!();
-        }
-    });
+    let data = await fetchDataAutoRetry('/api/search/', para) as SearchResponse;
+    blobImgList.value = [];
+    if (pageSize === 20) {
+        isPictureMode.value = true;
+    }
+    totalPage.value = data.totalPage;
+    console.log(data);
+    for (let item of data.hrefList) {
+        GetBlobImgSrc("/image/thumbnails/" + item.src).then((blobSrc) => {
+            blobImgList.value.push({ blobSrc: blobSrc, oriSrc: item.src, title: item.title, checked: false, date: item.date });
+        }).catch(() => {
+            router.push('/login');
+        });
+    }
+    if (isPictureMode.value && masonry) {
+        masonry?.layout!();
+    }
 }, 200);
+
+const handowSwitchMode = (pictureMode: boolean) => {
+    if (pictureMode) {
+        searchParams.page = 1;
+        pageSize = 20;
+        updateSearch();
+    } else {
+        searchParams.page = 1;
+        pageSize = 100;
+        updateSearch();
+    }
+    //updateSearch中改isPicturMode，保证不在pageSize过大时渲染图片视图
+}
 
 const imgClicked = (src: string) => {
     const newWindow = router.resolve('/detail/' + src);
@@ -175,6 +196,18 @@ const handleMoveCategory = async (typename: string) => {
     }
 }
 
+const tableSelect = (selection: Array<{ blobSrc: string, oriSrc: string, title: string, checked: boolean, date: Date }>) => {
+    blobImgList.value.forEach(item => {
+        item.checked = selection.some(sel => sel.oriSrc === item.oriSrc);
+    });
+}
+
+const handleRowDoubleClidked = (row:any) => {
+    const src = row.oriSrc
+    const newWindow = router.resolve('/detail/' + src);
+    window.open(newWindow.href, '_blank');
+}
+
 </script>
 
 <template>
@@ -182,15 +215,22 @@ const handleMoveCategory = async (typename: string) => {
         <el-container class="tool">
             <SearchBar :typeList="typeList" :keyword="keyword" @updateValue="updateSearchPara" />
             <SearchToolBar :typeList="typeList" @delete="handleDelete" @download="handleDownload"
-                @moveCategory="handleMoveCategory" />
+                @switch-mode="handowSwitchMode" @moveCategory="handleMoveCategory" />
         </el-container>
 
-        <div class="masonryContainerContainer">
+        <div v-if="isPictureMode" class="masonryContainerContainer">
             <div ref="masonryContainer" class="masonry">
                 <MasonryItemFigure v-for="blobImg in blobImgList" :key="blobImg.blobSrc" :src="blobImg.blobSrc"
                     :oriSrc="blobImg.oriSrc" :figcaption="blobImg.title" @clicked="imgClicked" @selected="imgSelected"
                     @unselected="imgUnSelected" />
             </div>
+        </div>
+        <div v-if="!isPictureMode" class="tableContainer">
+            <el-table :data="blobImgList" stripe style="width: 100%" @selection-change="tableSelect" @row-dblclick="handleRowDoubleClidked">
+                <el-table-column type="selection" width="55" />
+                <el-table-column prop="date" label="日期" width="180" />
+                <el-table-column prop="title" label="标题" width="500" />
+            </el-table>
         </div>
         <Pagination @pageChanged="pageChanged" :maxPage="totalPage" />
     </div>
@@ -209,6 +249,11 @@ const handleMoveCategory = async (typename: string) => {
     align-items: flex-start;
 }
 
+.el-table {
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .masonry {
     margin-left: auto;
     margin-right: auto;
@@ -218,6 +263,13 @@ const handleMoveCategory = async (typename: string) => {
     margin-left: auto;
     margin-right: auto;
     width: 90%;
+}
+
+.tableContainer {
+    margin-left: auto;
+    margin-right: auto;
+    width: 50%;
+    min-width: fit-content;
 }
 
 @media (min-width: 768px) {

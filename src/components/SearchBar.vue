@@ -206,7 +206,7 @@ function sendValue() {
 /* 响应式设计 */
 @media (max-width: 768px) {
   .search-card {
-    width: 95vw;
+    width: 90vw;
   }
   
   .sort-section {
