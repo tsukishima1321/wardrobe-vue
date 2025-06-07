@@ -12,7 +12,6 @@ import { onUpdated } from "vue";
 import Masonry from 'masonry-layout';
 import MasonryItemFigure from "./MasonryItemFigure.vue";
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { tr } from "element-plus/es/locales.mjs";
 
 const router = useRouter();
 const keyword = ref(router.currentRoute.value.params.keyword as string);
@@ -20,7 +19,7 @@ const typeList = ref<Array<string>>([]);
 const totalPage = ref(99);
 const blobImgList = ref<Array<{ blobSrc: string, oriSrc: string, title: string, checked: boolean, date: Date }>>([]);
 const isPictureMode = ref(true);
-const renderPicture = ref(true);
+const renderPicture = ref(false);
 const renderTable = ref(false);
 const pageSize = computed(() => {
     if (isPictureMode.value) {
@@ -71,7 +70,7 @@ onUpdated(() => {
 
 const updateSearchPara = (params: SearchParams) => {
     let order = 'desc'
-    if(params.sortOrder == "升序"){
+    if (params.sortOrder == "升序") {
         order = 'asc'
     }
     searchParams.keyword = params.keyword;
@@ -87,13 +86,11 @@ const updateSearchPara = (params: SearchParams) => {
 
 const updateSearch = debounce(async () => {
     console.log(searchParams);
-    if (renderPicture.value && !isPictureMode) {
+    if (!isPictureMode) {
         renderPicture.value = false;
-        renderTable.value = false;
     }
-    if (renderTable.value && isPictureMode) {
+    if (isPictureMode) {
         renderTable.value = false;
-        renderPicture.value = false;
     }
     let para = {
         searchKey: searchParams.keyword,
@@ -108,15 +105,26 @@ const updateSearch = debounce(async () => {
         pageSize: pageSize.value
     };
     let data = await fetchDataAutoRetry('/api/search/', para) as SearchResponse;
-    blobImgList.value = [];
+    blobImgList.value = data.hrefList.map(item => ({
+        blobSrc: '',
+        oriSrc: item.src,
+        title: item.title,
+        checked: false,
+        date: item.date
+    }));
     totalPage.value = data.totalPage;
     console.log(data);
-    for (let item of data.hrefList) {
-        GetBlobImgSrc("/image/thumbnails/" + item.src).then((blobSrc) => {
-            blobImgList.value.push({ blobSrc: blobSrc, oriSrc: item.src, title: item.title, checked: false, date: item.date });
-        }).catch(() => {
-            router.push('/login');
-        });
+    if (isPictureMode) {
+        for (let item of data.hrefList) {
+            GetBlobImgSrc("/image/thumbnails/" + item.src).then((blobSrc) => {
+                const imgItem = blobImgList.value.find(img => img.oriSrc === item.src);
+                if (imgItem) {
+                    imgItem.blobSrc = blobSrc;
+                }
+            }).catch(() => {
+                router.push('/login');
+            });
+        }
     }
     if (isPictureMode.value) {
         renderPicture.value = true;
@@ -249,6 +257,7 @@ const handleRowDoubleClidked = (row: any) => {
         </div>
         <Pagination @pageChanged="pageChanged" :maxPage="totalPage" />
     </div>
+    <el-backtop :right="100" :bottom="100" />
 </template>
 
 <style scoped>

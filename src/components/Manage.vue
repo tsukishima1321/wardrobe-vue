@@ -289,7 +289,6 @@ const getAvailableTypes = () => {
 .el-col {
     min-width: 60px;
     max-width: 200px;
-    transition: all 0.3s ease-out;
 }
 
 .menu-container {
