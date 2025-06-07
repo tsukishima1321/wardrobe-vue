@@ -12,6 +12,7 @@ import { onUpdated } from "vue";
 import Masonry from 'masonry-layout';
 import MasonryItemFigure from "./MasonryItemFigure.vue";
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { tr } from "element-plus/es/locales.mjs";
 
 const router = useRouter();
 const keyword = ref(router.currentRoute.value.params.keyword as string);
@@ -19,8 +20,15 @@ const typeList = ref<Array<string>>([]);
 const totalPage = ref(99);
 const blobImgList = ref<Array<{ blobSrc: string, oriSrc: string, title: string, checked: boolean, date: Date }>>([]);
 const isPictureMode = ref(true);
-
-let pageSize = 20
+const renderPicture = ref(true);
+const renderTable = ref(false);
+const pageSize = computed(() => {
+    if (isPictureMode.value) {
+        return 20;
+    } else {
+        return 100;
+    }
+})
 
 fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
     typeList.value = res as Array<string>;
@@ -62,21 +70,30 @@ onUpdated(() => {
 })
 
 const updateSearchPara = (params: SearchParams) => {
+    let order = 'desc'
+    if(params.sortOrder == "升序"){
+        order = 'asc'
+    }
     searchParams.keyword = params.keyword;
     searchParams.dateFrom = params.dateFrom;
     searchParams.dateTo = params.dateTo;
     searchParams.searchByTitle = params.searchByTitle;
     searchParams.searchByContent = params.searchByContent;
     searchParams.sortBy = params.sortBy;
-    searchParams.sortOrder = params.sortOrder;
+    searchParams.sortOrder = order;
     searchParams.typeFilter = params.typeFilter;
     updateSearch();
 }
 
 const updateSearch = debounce(async () => {
     console.log(searchParams);
-    if (pageSize === 100) {
-        isPictureMode.value = false;
+    if (renderPicture.value && !isPictureMode) {
+        renderPicture.value = false;
+        renderTable.value = false;
+    }
+    if (renderTable.value && isPictureMode) {
+        renderTable.value = false;
+        renderPicture.value = false;
     }
     let para = {
         searchKey: searchParams.keyword,
@@ -88,13 +105,10 @@ const updateSearch = debounce(async () => {
         orderBy: searchParams.sortBy,
         order: searchParams.sortOrder,
         type: searchParams.typeFilter.join('^'),
-        pageSize: pageSize
+        pageSize: pageSize.value
     };
     let data = await fetchDataAutoRetry('/api/search/', para) as SearchResponse;
     blobImgList.value = [];
-    if (pageSize === 20) {
-        isPictureMode.value = true;
-    }
     totalPage.value = data.totalPage;
     console.log(data);
     for (let item of data.hrefList) {
@@ -104,22 +118,22 @@ const updateSearch = debounce(async () => {
             router.push('/login');
         });
     }
+    if (isPictureMode.value) {
+        renderPicture.value = true;
+        renderTable.value = false;
+    } else {
+        renderPicture.value = false;
+        renderTable.value = true;
+    }
     if (isPictureMode.value && masonry) {
         masonry?.layout!();
     }
 }, 200);
 
 const handowSwitchMode = (pictureMode: boolean) => {
-    if (pictureMode) {
-        searchParams.page = 1;
-        pageSize = 20;
-        updateSearch();
-    } else {
-        searchParams.page = 1;
-        pageSize = 100;
-        updateSearch();
-    }
-    //updateSearch中改isPicturMode，保证不在pageSize过大时渲染图片视图
+    isPictureMode.value = pictureMode;
+    searchParams.page = 1;
+    updateSearch();
 }
 
 const imgClicked = (src: string) => {
@@ -202,7 +216,7 @@ const tableSelect = (selection: Array<{ blobSrc: string, oriSrc: string, title: 
     });
 }
 
-const handleRowDoubleClidked = (row:any) => {
+const handleRowDoubleClidked = (row: any) => {
     const src = row.oriSrc
     const newWindow = router.resolve('/detail/' + src);
     window.open(newWindow.href, '_blank');
@@ -218,15 +232,16 @@ const handleRowDoubleClidked = (row:any) => {
                 @switch-mode="handowSwitchMode" @moveCategory="handleMoveCategory" />
         </el-container>
 
-        <div v-if="isPictureMode" class="masonryContainerContainer">
+        <div v-if="renderPicture" class="masonryContainerContainer">
             <div ref="masonryContainer" class="masonry">
                 <MasonryItemFigure v-for="blobImg in blobImgList" :key="blobImg.blobSrc" :src="blobImg.blobSrc"
                     :oriSrc="blobImg.oriSrc" :figcaption="blobImg.title" @clicked="imgClicked" @selected="imgSelected"
                     @unselected="imgUnSelected" />
             </div>
         </div>
-        <div v-if="!isPictureMode" class="tableContainer">
-            <el-table :data="blobImgList" stripe style="width: 100%" @selection-change="tableSelect" @row-dblclick="handleRowDoubleClidked">
+        <div v-if="renderTable" class="tableContainer">
+            <el-table :data="blobImgList" stripe style="width: 100%" @selection-change="tableSelect"
+                @row-dblclick="handleRowDoubleClidked">
                 <el-table-column type="selection" width="55" />
                 <el-table-column prop="date" label="日期" width="180" />
                 <el-table-column prop="title" label="标题" width="500" />

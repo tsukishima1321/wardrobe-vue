@@ -1,6 +1,7 @@
 <script setup lang="ts">
 
 import favicon from '@/assets/icons/favicon.ico';
+import { Management, Search, UploadFilled } from '@element-plus/icons-vue';
 
 </script>
 
@@ -9,8 +10,15 @@ import favicon from '@/assets/icons/favicon.ico';
         <el-menu-item index="/" class="logo-menu-item">
             <img style="width: 48px" :src="favicon" alt="静寂的壁橱" />
         </el-menu-item>
-        <el-menu-item index="/search"><el-icon><Search /></el-icon>搜索</el-menu-item>
-        <el-menu-item index="/upload"><el-icon><UploadFilled /></el-icon>上传</el-menu-item>
+        <el-menu-item index="/search"><el-icon>
+                <Search />
+            </el-icon>搜索</el-menu-item>
+        <el-menu-item index="/upload"><el-icon>
+                <UploadFilled />
+            </el-icon>上传</el-menu-item>
+        <el-menu-item index="/manage"><el-icon>
+                <Management />
+            </el-icon>管理</el-menu-item>
     </el-menu>
 </template>
 

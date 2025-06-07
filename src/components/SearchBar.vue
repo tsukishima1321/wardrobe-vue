@@ -39,7 +39,7 @@ const sortBy = computed(() => {
   }
   return 'date';
 })
-const sortOrder = ref('desc');
+const sortOrder = ref('降序');
 const dateFrom = ref('');
 const dateTo = ref('');
 const typeFilter = ref(['']);
@@ -55,7 +55,7 @@ const emits = defineEmits<{
 }>();
 
 function sendValue() {
-  const searchParams:SearchParams = {
+  const searchParams: SearchParams = {
     keyword: keyword.value,
     sortBy: sortBy.value,
     sortOrder: sortOrder.value,
@@ -75,13 +75,8 @@ function sendValue() {
   <ElCard class="search-card" shadow="hover">
     <!-- 搜索输入框 -->
     <div class="search-row">
-      <ElInput
-        v-model="keyword"
-        placeholder="请输入..."
-        @change="sendValue"
-        @keyup.enter="sendValue"
-        style="flex: 1; margin-right: 10px;"
-      />
+      <ElInput v-model="keyword" placeholder="请输入..." @change="sendValue" @keyup.enter="sendValue"
+        style="flex: 1; margin-right: 10px;" />
       <ElButton type="primary" :icon="Search" @click="sendValue">
         搜索
       </ElButton>
@@ -104,10 +99,7 @@ function sendValue() {
           <ElOption label="文件名" value="文件名" />
           <ElOption label="标题" value="标题" />
         </ElSelect>
-        <ElRadioGroup v-model="sortOrder">
-          <el-radio-button value="asc">升序</el-radio-button>
-          <el-radio-button value="desc">降序</el-radio-button>
-        </ElRadioGroup>
+        <el-segmented v-model="sortOrder" :options="['升序','降序']" size="large" />
       </div>
     </div>
 
@@ -118,23 +110,13 @@ function sendValue() {
           <div class="date-filter">
             <div style="margin-bottom: 10px;">
               <span style="margin-right: 10px;">From:</span>
-              <ElDatePicker
-                v-model="dateFrom"
-                type="date"
-                placeholder="选择开始日期"
-                format="YYYY-MM-DD"
-                value-format="YYYY-MM-DD"
-              />
+              <ElDatePicker v-model="dateFrom" type="date" placeholder="选择开始日期" format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD" />
             </div>
             <div>
               <span style="margin-right: 10px;padding-right: 16px;">To:</span>
-              <ElDatePicker
-                v-model="dateTo"
-                type="date"
-                placeholder="选择结束日期"
-                format="YYYY-MM-DD"
-                value-format="YYYY-MM-DD"
-              />
+              <ElDatePicker v-model="dateTo" type="date" placeholder="选择结束日期" format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD" />
             </div>
           </div>
         </ElCollapseItem>
@@ -146,12 +128,7 @@ function sendValue() {
       <ElCollapse>
         <ElCollapseItem title="类型过滤" name="type">
           <ElCheckboxGroup v-model="typeFilter" class="type-filter">
-            <ElCheckbox 
-              v-for="type in props.typeList" 
-              :key="type" 
-              :value="type"
-              :label="type"
-            />
+            <ElCheckbox v-for="type in props.typeList" :key="type" :value="type" :label="type" />
           </ElCheckboxGroup>
         </ElCollapseItem>
       </ElCollapse>
@@ -208,18 +185,18 @@ function sendValue() {
   .search-card {
     width: 90vw;
   }
-  
+
   .sort-section {
     margin-left: 0;
     margin-bottom: 5px;
   }
-  
+
   .search-row {
     margin-bottom: 10px;
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .search-row:first-child {
     flex-direction: row;
   }
