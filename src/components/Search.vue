@@ -120,7 +120,10 @@ const imgClicked = (src: string) => {
 
 <style scoped>
 .search {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 95vh;
     width: 100%;
+    height: auto;
     margin-left: auto;
     margin-right: auto;
     display: flex;

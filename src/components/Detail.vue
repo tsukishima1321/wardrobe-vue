@@ -431,10 +431,12 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
 /* 响应式设计 */
 @media (max-width: 768px) {
     .el-main {
+        overflow-x: hidden;
         height: auto;
     }
 
     .detail-container {
+        overflow-x: hidden;
         height: auto;
         padding: 10px;
     }

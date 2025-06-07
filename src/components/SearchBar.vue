@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, defineEmits, computed, watchEffect } from 'vue';
+import { ElInput, ElButton, ElCheckbox, ElSelect, ElOption, ElRadio, ElRadioGroup, ElDatePicker, ElCollapse, ElCollapseItem, ElCheckboxGroup, ElCard } from 'element-plus';
+import { Search } from '@element-plus/icons-vue';
 
 const props = defineProps({
   typeList: {
@@ -44,8 +46,6 @@ const typeFilter = ref(['']);
 const searchByTitle = ref(true);
 const searchByContent = ref(false);
 
-
-
 watchEffect(() => {
   typeFilter.value = props.typeList;
 })
@@ -72,146 +72,154 @@ function sendValue() {
 </script>
 
 <template>
-  <div class="searchDiv">
-    <div class="searchRow">
-      <input type="text" id="searchInput" @change="sendValue" v-model="keyword" placeholder="请输入...">
-      <button @click="sendValue">搜索</button>
+  <ElCard class="search-card" shadow="hover">
+    <!-- 搜索输入框 -->
+    <div class="search-row">
+      <ElInput
+        v-model="keyword"
+        placeholder="请输入..."
+        @change="sendValue"
+        @keyup.enter="sendValue"
+        style="flex: 1; margin-right: 10px;"
+      />
+      <ElButton type="primary" :icon="Search" @click="sendValue">
+        搜索
+      </ElButton>
     </div>
-    <div class="searchRow">
-      <div class="flowLeft">
-        <input type="checkbox" id="searchInTitle" checked v-model="searchByTitle">
-        <label for="searchInTitle">标题</label>
-        <input type="checkbox" id="searchInContent" unchecked v-model="searchByContent">
-        <label for="searchInContent">内容</label>
+
+    <!-- 搜索范围选择 -->
+    <div class="search-row">
+      <div class="checkbox-group">
+        <ElCheckbox v-model="searchByTitle" label="标题" />
+        <ElCheckbox v-model="searchByContent" label="内容" />
       </div>
     </div>
-    <div class="searchRow">
-      <div class="flowRight">
-        <label for="sortBy">排序:</label>
-        <select id="sortBy" v-model="sortByText">
-          <option>日期</option>
-          <option>文件名</option>
-          <option>标题</option>
-        </select>
-        <input type="radio" id="sortAscending" name="sortOrder" value="asc" checked v-model="sortOrder">
-        <label for="sortAscending">升序</label>
-        <input type="radio" id="sortDescending" name="sortOrder" value="desc" v-model="sortOrder">
-        <label for="sortDescending">降序</label>
+
+    <!-- 排序选项 -->
+    <div class="search-row">
+      <div class="sort-section">
+        <span class="sort-label">排序:</span>
+        <ElSelect v-model="sortByText" style="width: 100px; margin-right: 10px;">
+          <ElOption label="日期" value="日期" />
+          <ElOption label="文件名" value="文件名" />
+          <ElOption label="标题" value="标题" />
+        </ElSelect>
+        <ElRadioGroup v-model="sortOrder">
+          <ElRadio value="asc">升序</ElRadio>
+          <ElRadio value="desc">降序</ElRadio>
+        </ElRadioGroup>
       </div>
     </div>
-    <div class="searchRow">
-      <details id="filterByDate">
-        <summary>日期过滤：</summary>
-        From：&emsp;<input type="date" id="dateFrom" v-model="dateFrom">
-        <br>
-        To：&emsp;<input type="date" id="dateTo" v-model="dateTo">
-      </details>
+
+    <!-- 日期过滤 -->
+    <div class="search-row">
+      <ElCollapse>
+        <ElCollapseItem title="日期过滤" name="date">
+          <div class="date-filter">
+            <div style="margin-bottom: 10px;">
+              <span style="margin-right: 10px;">From:</span>
+              <ElDatePicker
+                v-model="dateFrom"
+                type="date"
+                placeholder="选择开始日期"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+              />
+            </div>
+            <div>
+              <span style="margin-right: 10px;padding-right: 16px;">To:</span>
+              <ElDatePicker
+                v-model="dateTo"
+                type="date"
+                placeholder="选择结束日期"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+              />
+            </div>
+          </div>
+        </ElCollapseItem>
+      </ElCollapse>
     </div>
-    <div class="searchRow">
-      <details id="typeFilter">
-        <summary>类型过滤:</summary>
-        <label v-for="type in props.typeList" :key="type">
-          <input type="checkbox" :id="type" v-model="typeFilter" :value="type">
-          <label :for="type">{{ type }}</label>
-        </label>
-      </details>
+
+    <!-- 类型过滤 -->
+    <div class="search-row">
+      <ElCollapse>
+        <ElCollapseItem title="类型过滤" name="type">
+          <ElCheckboxGroup v-model="typeFilter" class="type-filter">
+            <ElCheckbox 
+              v-for="type in props.typeList" 
+              :key="type" 
+              :value="type"
+              :label="type"
+            />
+          </ElCheckboxGroup>
+        </ElCollapseItem>
+      </ElCollapse>
     </div>
-  </div>
+  </ElCard>
 </template>
 
 <style scoped>
-.searchDiv {
-  width: 75vw;
-  max-width: 1000px;
-  margin: auto;
-  margin-bottom: 10px;
-  margin-top: 10px;
-  padding: 20px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  background-color: #f9f9f9;
+.search-card {
+  width: 90vw;
+  margin: 10px auto;
 }
 
-.searchRow {
-  align-items: center;
+.search-row {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 800px;
   display: flex;
+  align-items: center;
+  margin-bottom: 0px;
   flex-wrap: wrap;
-  margin-bottom: 5px;
 }
 
-.searchRow label {
-  margin-right: 10px;
+.checkbox-group {
+  display: flex;
+  gap: 15px;
 }
 
-.searchRow .flowLeft {
-  float: left;
-}
-
-.searchRow .flowRight {
-  float: right;
-  margin-right: 0;
+.sort-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-left: auto;
 }
 
-.searchRow input[type="text"],
-.searchRow select {
-  flex: 1;
-  padding: 8px;
-  margin-right: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+.sort-label {
+  font-weight: 500;
+  color: #606266;
 }
 
-.searchRow input[type="date"] {
-  flex: 1;
-  padding: 0px;
-  margin-right: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+.date-filter {
+  padding: 10px 0;
 }
 
-.searchRow input[type="checkbox"],
-.searchRow input[type="radio"] {
-  margin-right: 5px;
+.type-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.searchRow button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  background-color: #007bff;
-  color: white;
-  cursor: pointer;
-}
-
-.searchRow button:hover {
-  background-color: #0056b3;
-}
-
-details {
-  border: 1px solid #aaa;
-  border-radius: 4px;
-  padding: 0.5em 0.5em 0;
-  margin-right: 15px;
-}
-
-summary {
-  font-weight: bold;
-  margin: -0.5em -0.5em 0;
-  padding: 0.5em;
-}
-
-details[open] {
-  padding: 0.5em;
-}
-
-details[open] summary {
-  border-bottom: 1px solid #aaa;
-  margin-bottom: 0.5em;
-}
-
-#dateFrom #dateTo {
-  height: auto;
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .search-card {
+    width: 95vw;
+  }
+  
+  .sort-section {
+    margin-left: 0;
+    margin-bottom: 5px;
+  }
+  
+  .search-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .search-row:first-child {
+    flex-direction: row;
+  }
 }
 </style>
