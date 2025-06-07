@@ -4,6 +4,8 @@ import { useRouter } from "vue-router";
 import {
     Memo,
     Box,
+    Expand,
+    Fold,
 } from '@element-plus/icons-vue'
 import { ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -11,9 +13,15 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const router = useRouter();
 
 const activeIndex = ref('1');
+const isMenuCollapsed = ref(false);
 
 const handleSelect = (key: string, keyPath: string[]) => {
     activeIndex.value = key;
+}
+
+// 切换菜单折叠状态
+const toggleMenuCollapse = () => {
+    isMenuCollapsed.value = !isMenuCollapsed.value;
 }
 
 interface typeRow {
@@ -163,25 +171,33 @@ const getAvailableTypes = () => {
 
 </script>
 
-<template>
-    <el-row class="manage">
-        <el-col :span="4">
-            <el-menu default-active="1" @select="handleSelect">
-                <el-menu-item index="1">
-                    <el-icon>
-                        <Box />
-                    </el-icon>
-                    <span>分类管理</span>
-                </el-menu-item>
-                <el-menu-item index="2">
-                    <el-icon>
-                        <Memo />
-                    </el-icon>
-                    <span>OCR任务</span>
-                </el-menu-item>
-            </el-menu>
-        </el-col>
-        <el-card v-if="activeIndex === '1'" class="=manage-content">
+<template> <el-row class="manage">
+        <el-col :span="isMenuCollapsed ? 1 : 8">
+            <div class="menu-container">
+                <!-- 折叠/展开按钮 -->
+                <div class="menu-toggle-btn">
+                    <el-button :icon="isMenuCollapsed ? Expand : Fold" @click="toggleMenuCollapse" type="primary" text/>
+                </div>
+
+                <el-menu default-active="1" @select="handleSelect" :collapse="isMenuCollapsed"
+                    :collapse-transition="true">
+                    <el-menu-item index="0">
+                    </el-menu-item>
+                    <el-menu-item index="1">
+                        <el-icon>
+                            <Box />
+                        </el-icon>
+                        <span>分类管理</span>
+                    </el-menu-item>
+                    <el-menu-item index="2">
+                        <el-icon>
+                            <Memo />
+                        </el-icon>
+                        <span>OCR任务</span>
+                    </el-menu-item>
+                </el-menu>
+            </div>
+        </el-col> <el-card v-if="activeIndex === '1'" class="manage-content">
             <h2>分类管理</h2>
             <el-table :data="typeList" highlight-current-row @current-change="handleTypeSelectChange">
                 <el-table-column prop="type" label="分类" width="200" />
@@ -271,11 +287,26 @@ const getAvailableTypes = () => {
 
 <style scoped>
 .el-col {
-    min-width: 150px;
+    min-width: 60px;
+    max-width: 200px;
+    transition: all 0.3s ease-out;
+}
+
+.menu-container {
+    position: relative;
+    height: 100%;
+}
+
+.menu-toggle-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
 }
 
 .el-menu {
     height: 95vh;
+    border-right: none;
 }
 
 .manage {
