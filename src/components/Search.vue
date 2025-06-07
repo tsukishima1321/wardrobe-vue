@@ -86,10 +86,10 @@ const updateSearchPara = (params: SearchParams) => {
 
 const updateSearch = debounce(async () => {
     console.log(searchParams);
-    if (!isPictureMode) {
+    if (!isPictureMode.value) {
         renderPicture.value = false;
     }
-    if (isPictureMode) {
+    if (isPictureMode.value) {
         renderTable.value = false;
     }
     let para = {
@@ -114,7 +114,7 @@ const updateSearch = debounce(async () => {
     }));
     totalPage.value = data.totalPage;
     console.log(data);
-    if (isPictureMode) {
+    if (isPictureMode.value) {
         for (let item of data.hrefList) {
             GetBlobImgSrc("/image/thumbnails/" + item.src).then((blobSrc) => {
                 const imgItem = blobImgList.value.find(img => img.oriSrc === item.src);
