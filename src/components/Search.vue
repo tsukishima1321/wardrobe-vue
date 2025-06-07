@@ -4,18 +4,20 @@ import { useRouter } from "vue-router";
 import { ref, useTemplateRef } from 'vue';
 import { fetchDataAutoRetry, GetBlobImgSrc } from "@/token";
 import SearchBar from "./SearchBar.vue";
+import SearchToolBar from "./SearchToolBar.vue";
 import Pagination from "./Pagination.vue";
 import type { SearchParams } from "./SearchBar.vue";
 import { debounce } from 'lodash';
 import { onUpdated } from "vue";
 import Masonry from 'masonry-layout';
 import MasonryItemFigure from "./MasonryItemFigure.vue";
+import { ElMessage, ElMessageBox } from 'element-plus';
 
 const router = useRouter();
 const keyword = ref(router.currentRoute.value.params.keyword as string);
 const typeList = ref<Array<string>>([]);
 const totalPage = ref(99);
-const blobImgList = ref<Array<{ blobSrc: string, oriSrc: string, title: string }>>([]);
+const blobImgList = ref<Array<{ blobSrc: string, oriSrc: string, title: string, checked: boolean }>>([]);
 
 fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
     typeList.value = res as Array<string>;
@@ -88,7 +90,7 @@ const updateSearch = debounce(() => {
         console.log(data);
         for (let item of data.hrefList) {
             GetBlobImgSrc("/image/thumbnails/" + item.src).then((blobSrc) => {
-                blobImgList.value.push({ blobSrc: blobSrc, oriSrc: item.src, title: item.title });
+                blobImgList.value.push({ blobSrc: blobSrc, oriSrc: item.src, title: item.title, checked: false });
             }).catch(() => {
                 router.push('/login');
             });
@@ -103,15 +105,91 @@ const imgClicked = (src: string) => {
     const newWindow = router.resolve('/detail/' + src);
     window.open(newWindow.href, '_blank');
 }
+
+const imgSelected = (src: string) => {
+    const item = blobImgList.value.find(item => item.oriSrc == src);
+    if (item) {
+        item.checked = true;
+    }
+}
+
+const imgUnSelected = (src: string) => {
+    const item = blobImgList.value.find(item => item.oriSrc == src);
+    if (item) {
+        item.checked = false;
+    }
+}
+
+const handleDelete = async () => {
+    const selectedList = blobImgList.value.filter(item => item.checked).map(item => item.oriSrc);
+    if (selectedList.length === 0) {
+        ElMessage.warning('选择列表为空');
+        return;
+    }
+    for (let item of selectedList) {
+        const yes = await ElMessageBox.confirm(`确定删除图片 ${item} 吗？`, '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+        });
+        if (yes) {
+            fetchDataAutoRetry('/api/image/delete/', { src: item }, 'POST').then(() => {
+                ElMessage.success(`图片 ${item} 已删除`);
+            }).catch(() => {
+                router.push('/login');
+            });
+        }
+    }
+    updateSearch();
+}
+
+const handleDownload = async () => {
+    const selectedList = blobImgList.value.filter(item => item.checked).map(item => item.oriSrc);
+    if (selectedList.length === 0) {
+        ElMessage.warning('选择列表为空');
+        return;
+    }
+    for (let item of selectedList) {
+        const link = document.createElement('a');
+        link.href = await GetBlobImgSrc('/image/' + item);
+        link.download = item;
+        link.click();
+    }
+}
+
+const handleMoveCategory = async (typename: string) => {
+    const selectedList = blobImgList.value.filter(item => item.checked).map(item => item.oriSrc);
+    if (selectedList.length === 0) {
+        ElMessage.warning('选择列表为空');
+        return;
+    }
+    if (typename) {
+        for (let item of selectedList) {
+            await fetchDataAutoRetry('/api/image/set/', { src: item, type: typename }, 'POST').then(() => {
+                ElMessage.success(`图片 ${item} 已移动到分类 ${typename}`);
+            }).catch(() => {
+                router.push('/login');
+            });
+        }
+        updateSearch();
+    }
+}
+
 </script>
 
 <template>
     <div class="search">
-        <SearchBar :typeList="typeList" :keyword="keyword" @updateValue="updateSearchPara" />
+        <el-container class="tool">
+            <SearchBar :typeList="typeList" :keyword="keyword" @updateValue="updateSearchPara" />
+            <SearchToolBar :typeList="typeList" @delete="handleDelete" @download="handleDownload"
+                @moveCategory="handleMoveCategory" />
+        </el-container>
+
         <div class="masonryContainerContainer">
             <div ref="masonryContainer" class="masonry">
                 <MasonryItemFigure v-for="blobImg in blobImgList" :key="blobImg.blobSrc" :src="blobImg.blobSrc"
-                    :oriSrc="blobImg.oriSrc" :figcaption="blobImg.title" @clicked="imgClicked"/>
+                    :oriSrc="blobImg.oriSrc" :figcaption="blobImg.title" @clicked="imgClicked" @selected="imgSelected"
+                    @unselected="imgUnSelected" />
             </div>
         </div>
         <Pagination @pageChanged="pageChanged" :maxPage="totalPage" />
@@ -140,5 +218,22 @@ const imgClicked = (src: string) => {
     margin-left: auto;
     margin-right: auto;
     width: 90%;
+}
+
+@media (min-width: 768px) {
+    .tool {
+        flex-direction: row;
+        justify-content: center;
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .tool {
+        margin-left: auto;
+        margin-right: auto;
+        flex-direction: column;
+    }
 }
 </style>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-const { src, figcaption, oriSrc } = defineProps({
+import { ref } from 'vue'
+const { src, figcaption, oriSrc, checked } = defineProps({
     src: {
         type: String,
         default: '/placeholder.png'
@@ -11,22 +12,39 @@ const { src, figcaption, oriSrc } = defineProps({
     oriSrc: {
         type: String,
         default: '/placeholder.png'
+    },
+    checked: {
+        type: Boolean,
+        default: false
     }
 });
 
+const selected = ref<boolean>(checked);
+
 const emits = defineEmits<{
-    clicked: [src:string]
+    clicked: [src: string],
+    selected: [src: string],
+    unselected: [src: string]
 }>();
 
-const clicked = ()=>{
+const clicked = () => {
     emits('clicked', oriSrc);
+}
+
+const changed = () => {
+    if (selected) {
+        emits('selected', oriSrc);
+    } else {
+        emits('unselected', oriSrc);
+    }
 }
 </script>
 
 <template>
     <figure class="masonry-item">
         <img :src="src" @click="clicked">
-        <figcaption>{{ figcaption }}</figcaption>
+        <figcaption><el-checkbox v-model="selected" @change="changed" style="display: inline;"></el-checkbox>{{
+            figcaption }}</figcaption>
     </figure>
 </template>
 
@@ -34,6 +52,10 @@ const clicked = ()=>{
 .masonry-item {
     display: flex;
     flex-direction: column;
+}
+
+.el-checkbox {
+    margin-right: 5px;
 }
 
 figure {

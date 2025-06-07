@@ -90,8 +90,8 @@ function sendValue() {
     <!-- 搜索范围选择 -->
     <div class="search-row">
       <div class="checkbox-group">
-        <ElCheckbox v-model="searchByTitle" label="标题" />
-        <ElCheckbox v-model="searchByContent" label="内容" />
+        <el-checkbox-button v-model="searchByTitle" label="标题" />
+        <el-checkbox-button v-model="searchByContent" label="内容" />
       </div>
     </div>
 
@@ -105,8 +105,8 @@ function sendValue() {
           <ElOption label="标题" value="标题" />
         </ElSelect>
         <ElRadioGroup v-model="sortOrder">
-          <ElRadio value="asc">升序</ElRadio>
-          <ElRadio value="desc">降序</ElRadio>
+          <el-radio-button value="asc">升序</el-radio-button>
+          <el-radio-button value="desc">降序</el-radio-button>
         </ElRadioGroup>
       </div>
     </div>
@@ -161,7 +161,8 @@ function sendValue() {
 
 <style scoped>
 .search-card {
-  width: 90vw;
+  height: fit-content;
+  width: 60vw;
   margin: 10px auto;
 }
 
@@ -176,8 +177,8 @@ function sendValue() {
 }
 
 .checkbox-group {
+  margin-top: 5px;
   display: flex;
-  gap: 15px;
 }
 
 .sort-section {
@@ -214,6 +215,7 @@ function sendValue() {
   }
   
   .search-row {
+    margin-bottom: 10px;
     flex-direction: column;
     align-items: flex-start;
   }
