@@ -17,6 +17,10 @@ const isMenuCollapsed = ref(false);
 
 const handleSelect = (key: string, keyPath: string[]) => {
     activeIndex.value = key;
+    if (activeIndex.value === '2') {
+        // 切换到OCR任务时，加载任务列表
+        fetchOcrMissionList();
+    }
 }
 
 // 切换菜单折叠状态
@@ -30,6 +34,7 @@ interface typeRow {
 
 const typeList = ref<Array<typeRow>>([]);
 const currentTypeRow = ref<typeRow>({ type: 'null' });
+const ocrMissionList = ref<Array<{ src: string, status: string }>>([]);
 
 // 对话框状态
 const newTypeDialogVisible = ref(false);
@@ -54,6 +59,14 @@ const refreshTypeList = () => {
 }
 
 refreshTypeList();
+
+const fetchOcrMissionList = () => {
+    fetchDataAutoRetry('/api/ocrmission/get/', {}, 'GET').then((res) => {
+        ocrMissionList.value = res as Array<{ src: string, status: string }>;
+    }).catch(() => {
+        router.push('/login');
+    });
+}
 
 const handleTypeSelectChange = (row: typeRow) => {
     currentTypeRow.value = row;
@@ -164,6 +177,16 @@ const confirmDeleteType = async () => {
     }
 }
 
+const filterStatus = (value: string, row: { src: string, status: string }) => {
+    return row.status === value
+}
+
+const handleRowDoubleClidked = (row: { src: string, status: string }) => {
+    const src = row.src
+    const newWindow = router.resolve('/detail/' + src);
+    window.open(newWindow.href, '_blank');
+}
+
 // 获取可用的替换分类列表（排除当前选中的分类）
 const getAvailableTypes = () => {
     return typeList.value.filter(item => item.type !== currentTypeRow.value.type);
@@ -176,7 +199,8 @@ const getAvailableTypes = () => {
             <div class="menu-container">
                 <!-- 折叠/展开按钮 -->
                 <div class="menu-toggle-btn">
-                    <el-button :icon="isMenuCollapsed ? Expand : Fold" @click="toggleMenuCollapse" type="primary" text/>
+                    <el-button :icon="isMenuCollapsed ? Expand : Fold" @click="toggleMenuCollapse" type="primary"
+                        text />
                 </div>
 
                 <el-menu default-active="1" @select="handleSelect" :collapse="isMenuCollapsed"
@@ -208,7 +232,16 @@ const getAvailableTypes = () => {
         </el-card>
         <el-card v-else-if="activeIndex === '2'" class="manage-content">
             <h2>OCR任务</h2>
-            <!-- OCR任务内容 -->
+            <el-scrollbar :height="'calc(100vh - 200px)'">
+                <el-button type="primary" @click="fetchOcrMissionList">刷新任务列表</el-button>
+                <el-table :data="ocrMissionList" @row-dblclick="handleRowDoubleClidked">
+                    <el-table-column prop="src" label="文件" width="200" />
+                    <el-table-column prop="status" label="状态" width="100"
+                        :filters="[{ text: '已完成', value: 'finished' }, { text: '进行中', value: 'processing' }, { text: '等待中', value: 'waiting' }]" 
+                        :filter-method="filterStatus"/>
+                        
+                </el-table>
+            </el-scrollbar>
         </el-card>
 
         <!-- 新建分类对话框 -->

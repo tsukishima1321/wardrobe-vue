@@ -73,6 +73,7 @@ const updateSearchPara = (params: SearchParams) => {
     if (params.sortOrder == "升序") {
         order = 'asc'
     }
+    searchParams.page = 1;
     searchParams.keyword = params.keyword;
     searchParams.dateFrom = params.dateFrom;
     searchParams.dateTo = params.dateTo;
@@ -224,7 +225,7 @@ const tableSelect = (selection: Array<{ blobSrc: string, oriSrc: string, title: 
     });
 }
 
-const handleRowDoubleClidked = (row: any) => {
+const handleRowDoubleClidked = (row: { blobSrc: string, oriSrc: string, title: string, checked: boolean, date: Date }) => {
     const src = row.oriSrc
     const newWindow = router.resolve('/detail/' + src);
     window.open(newWindow.href, '_blank');
@@ -292,8 +293,6 @@ const handleRowDoubleClidked = (row: any) => {
 .tableContainer {
     margin-left: auto;
     margin-right: auto;
-    width: 50%;
-    min-width: fit-content;
 }
 
 @media (min-width: 768px) {
@@ -303,6 +302,11 @@ const handleRowDoubleClidked = (row: any) => {
         margin-left: auto;
         margin-right: auto;
     }
+
+    .tableContainer {
+        width: 50%;
+        min-width: fit-content;
+    }
 }
 
 @media (max-width: 768px) {
@@ -310,6 +314,10 @@ const handleRowDoubleClidked = (row: any) => {
         margin-left: auto;
         margin-right: auto;
         flex-direction: column;
+    }
+
+    .tableContainer {
+        width: 95%;
     }
 }
 </style>
