@@ -35,6 +35,7 @@ interface typeRow {
 const typeList = ref<Array<typeRow>>([]);
 const currentTypeRow = ref<typeRow>({ type: 'null' });
 const ocrMissionList = ref<Array<{ src: string, status: string }>>([]);
+const currentOcrRow = ref<{ src: string, status: string }>({ src: 'null', status: '' });
 
 // 对话框状态
 const newTypeDialogVisible = ref(false);
@@ -68,8 +69,81 @@ const fetchOcrMissionList = () => {
     });
 }
 
+const resetOcr = () => {
+    if (currentOcrRow.value.src === '') {
+        ElMessage.warning('请先选择一个OCR任务');
+        return;
+    }
+
+    ElMessageBox.confirm('确认重置该OCR任务吗？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+    }).then(async () => {
+        try {
+            await fetchDataAutoRetry('/api/ocrmission/reset/', { src: currentOcrRow.value.src }, 'POST');
+            ElMessage.success('OCR任务重置成功');
+            fetchOcrMissionList();
+        } catch (error) {
+            ElMessage.error('OCR任务重置失败');
+        }
+    }).catch(() => {
+        // 用户取消操作
+    });
+}
+
+const performOcr = () => {
+    if (currentOcrRow.value.src === '') {
+        ElMessage.warning('请先选择一个OCR任务');
+        return;
+    }
+    if (currentOcrRow.value.status !== 'waiting') {
+        ElMessage.warning('当前OCR任务状态不允许执行');
+        return;
+    }
+
+    ElMessageBox.confirm('确认执行OCR任务吗？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+    }).then(async () => {
+        try {
+            await fetchDataAutoRetry('/api/ocrmission/execute/', { src: currentOcrRow.value.src }, 'POST');
+            ElMessage.success('OCR任务已列队');
+            fetchOcrMissionList();
+        } catch (error) {
+            ElMessage.error('OCR任务执行失败');
+        }
+    }).catch(() => {
+        // 用户取消操作
+    });
+}
+
+const performAllOcr = () => {
+    ElMessageBox.confirm('确认执行所有OCR任务吗？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+    }).then(async () => {
+        currentOcrRow.value = { src: 'null', status: '' }
+        try {
+            await fetchDataAutoRetry('/api/ocrmission/executeall/', {}, 'POST');
+            ElMessage.success('所有OCR任务已列队');
+            fetchOcrMissionList();
+        } catch (error) {
+            ElMessage.error('执行所有OCR任务失败');
+        }
+    }).catch(() => {
+        // 用户取消操作
+    });
+}
+
 const handleTypeSelectChange = (row: typeRow) => {
     currentTypeRow.value = row;
+}
+
+const handleOCRSelectChange = (row: { src: string, status: string }) => {
+    currentOcrRow.value = row;
 }
 
 // 新建分类
@@ -232,16 +306,20 @@ const getAvailableTypes = () => {
         </el-card>
         <el-card v-else-if="activeIndex === '2'" class="manage-content">
             <h2>OCR任务</h2>
-            <el-scrollbar :height="'calc(100vh - 200px)'">
-                <el-button type="primary" @click="fetchOcrMissionList">刷新任务列表</el-button>
-                <el-table :data="ocrMissionList" @row-dblclick="handleRowDoubleClidked">
+            <el-button type="primary" @click="fetchOcrMissionList">刷新任务列表</el-button>
+            <el-scrollbar :height="'calc(100vh - 300px)'">
+                <el-table :data="ocrMissionList" @row-dblclick="handleRowDoubleClidked" highlight-current-row
+                    @current-change="handleOCRSelectChange">
                     <el-table-column prop="src" label="文件" width="200" />
                     <el-table-column prop="status" label="状态" width="100"
-                        :filters="[{ text: '已完成', value: 'finished' }, { text: '进行中', value: 'processing' }, { text: '等待中', value: 'waiting' }]" 
-                        :filter-method="filterStatus"/>
-                        
+                        :filters="[{ text: '已完成', value: 'finished' }, { text: '进行中', value: 'processing' }, { text: '等待中', value: 'waiting' }]"
+                        :filter-method="filterStatus" />
+
                 </el-table>
             </el-scrollbar>
+            <el-button type="primary" @click="performAllOcr">执行所有</el-button>
+            <el-button type="primary" :disabled="currentOcrRow?.src == 'null'" @click="performOcr">执行所选</el-button>
+            <el-button type="success" :disabled="currentOcrRow?.src == 'null'" @click="resetOcr">重置所选</el-button>
         </el-card>
 
         <!-- 新建分类对话框 -->
