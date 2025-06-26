@@ -22,7 +22,7 @@ let oriSrc: string = '';
 const pickImg = () => {
     fetchDataAutoRetry(`/api/random/${typeSelected.value == '不限' ? '' : `?type=${typeSelected.value}`}`, {}, 'GET').then((res) => {
         const r = res as ImgInfo;
-        GetBlobImgSrc("/image/thumbnails/" + r.src).then((blobSrc) => {
+        GetBlobImgSrc("/imagebed/thumbnails/" + r.src).then((blobSrc) => {
             oriSrc = r.src;
             pickedImg.value = blobSrc;
         }).catch(() => {

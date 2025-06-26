@@ -32,7 +32,7 @@ interface imgData {
 }
 
 const loadImg = () => {
-    GetBlobImgSrc("/image/" + imgSrc.value).then((res) => {
+    GetBlobImgSrc("/imagebed/" + imgSrc.value).then((res) => {
         blobSrc.value = res;
         fetchDataAutoRetry(`/api/image/get/`, { src: imgSrc.value }, 'POST').then((res) => {
             const r = res as imgData;

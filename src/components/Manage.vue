@@ -310,16 +310,16 @@ const getAvailableTypes = () => {
             <el-scrollbar :height="'calc(100vh - 300px)'">
                 <el-table :data="ocrMissionList" @row-dblclick="handleRowDoubleClidked" highlight-current-row
                     @current-change="handleOCRSelectChange">
-                    <el-table-column prop="src" label="文件" width="200" />
-                    <el-table-column prop="status" label="状态" width="100"
+                    <el-table-column prop="src" label="文件" width="160" />
+                    <el-table-column prop="status" label="状态" width="90"
                         :filters="[{ text: '已完成', value: 'finished' }, { text: '进行中', value: 'processing' }, { text: '等待中', value: 'waiting' }]"
                         :filter-method="filterStatus" />
 
                 </el-table>
             </el-scrollbar>
             <el-button type="primary" @click="performAllOcr">执行所有</el-button>
-            <el-button type="primary" :disabled="currentOcrRow?.src == 'null'" @click="performOcr">执行所选</el-button>
-            <el-button type="success" :disabled="currentOcrRow?.src == 'null'" @click="resetOcr">重置所选</el-button>
+            <el-button type="primary" :disabled="currentOcrRow?.src == 'null'" @click="performOcr">执行</el-button>
+            <el-button type="success" :disabled="currentOcrRow?.src == 'null'" @click="resetOcr">重置</el-button>
         </el-card>
 
         <!-- 新建分类对话框 -->
@@ -399,7 +399,7 @@ const getAvailableTypes = () => {
 <style scoped>
 .el-col {
     min-width: 60px;
-    max-width: 200px;
+    max-width: 180px;
 }
 
 .menu-container {

@@ -117,7 +117,7 @@ const updateSearch = debounce(async () => {
     console.log(data);
     if (isPictureMode.value) {
         for (let item of data.hrefList) {
-            GetBlobImgSrc("/image/thumbnails/" + item.src).then((blobSrc) => {
+            GetBlobImgSrc("/imagebed/thumbnails/" + item.src).then((blobSrc) => {
                 const imgItem = blobImgList.value.find(img => img.oriSrc === item.src);
                 if (imgItem) {
                     imgItem.blobSrc = blobSrc;
@@ -195,7 +195,7 @@ const handleDownload = async () => {
     }
     for (let item of selectedList) {
         const link = document.createElement('a');
-        link.href = await GetBlobImgSrc('/image/' + item);
+        link.href = await GetBlobImgSrc('/imagebed/' + item);
         link.download = item;
         link.click();
     }
