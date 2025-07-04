@@ -125,6 +125,14 @@ const submitEditText = async () => {
     }
 }
 
+const newOCRTask = async () => {
+    await fetchDataAutoRetry(`/api/ocrmission/new/`, { src: imgSrc.value }, 'POST').then(() => {
+        ElMessage.success('OCR任务已创建');
+    }).catch(() => {
+        ElMessage.error('创建OCR任务失败，请重试');
+    });
+}
+
 // 缩放控制函数
 const zoomIn = () => {
     if (zoomLevel.value < maxZoom) {
@@ -249,7 +257,15 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
                         <el-card class="text-card" shadow="hover">
                             <template #header>
                                 <div class="card-header-with-action">
-                                    <span>文本信息</span> <el-button v-if="!enableEditText" type="primary" size="small"
+                                    <span>文本信息</span> 
+                                    <el-button v-if="!enableEditText" type="primary" size="small"
+                                        @click="newOCRTask">
+                                        <el-icon>
+                                            <Edit />
+                                        </el-icon>
+                                        设置OCR任务
+                                    </el-button>
+                                    <el-button v-if="!enableEditText" type="primary" size="small"
                                         @click="startEditText">
                                         <el-icon>
                                             <Edit />
