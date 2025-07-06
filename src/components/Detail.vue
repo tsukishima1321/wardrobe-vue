@@ -32,17 +32,17 @@ interface imgData {
 }
 
 const loadImg = () => {
+    fetchDataAutoRetry(`/api/image/get/`, { src: imgSrc.value }, 'POST').then((res) => {
+        const r = res as imgData;
+        imgTitle.value = r.title;
+        imgText.value = r.text;
+        imgDate.value = r.date;
+        typeSelected.value = r.type;
+    }).catch(() => {
+        router.push('/login');
+    });
     GetBlobImgSrc("/imagebed/" + imgSrc.value).then((res) => {
         blobSrc.value = res;
-        fetchDataAutoRetry(`/api/image/get/`, { src: imgSrc.value }, 'POST').then((res) => {
-            const r = res as imgData;
-            imgTitle.value = r.title;
-            imgText.value = r.text;
-            imgDate.value = r.date;
-            typeSelected.value = r.type;
-        }).catch(() => {
-            router.push('/login');
-        });
     }).catch(() => {
         router.push('/login');
     });
@@ -164,7 +164,7 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
             <el-row :gutter="20" style="height: 100%;">
                 <!-- 左侧：图片展示区域 -->
                 <el-col :span="14">
-                    <el-card class="image-card" shadow="hover">                        <template #header>
+                    <el-card class="image-card" shadow="hover"> <template #header>
                             <div class="card-header-with-zoom">
                                 <span>图片详情</span>
                                 <div class="zoom-controls">
@@ -185,13 +185,16 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
                                             </el-icon>
                                         </el-button>
                                     </el-button-group>
-                                    <el-text size="small" class="zoom-level">{{ Math.round(zoomLevel * 100) }}%</el-text>
+                                    <el-text size="small" class="zoom-level">{{ Math.round(zoomLevel * 100)
+                                        }}%</el-text>
                                 </div>
                             </div>
-                        </template>                        <div class="image-container">
+                        </template>
+                        <div class="image-container">
                             <div class="image-scroll-wrapper">
                                 <el-image :src="blobSrc" :preview-src-list="[blobSrc]" fit="cover"
-                                    class="scrollable-image" :style="{ transform: `scale(${zoomLevel})`, transformOrigin: 'center top' }">
+                                    class="scrollable-image"
+                                    :style="{ transform: `scale(${zoomLevel})`, transformOrigin: 'center top' }">
                                     <template #error>
                                         <div class="image-slot">
                                             <el-icon>
@@ -257,9 +260,8 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
                         <el-card class="text-card" shadow="hover">
                             <template #header>
                                 <div class="card-header-with-action">
-                                    <span>文本信息</span> 
-                                    <el-button v-if="!enableEditText" type="primary" size="small"
-                                        @click="newOCRTask">
+                                    <span>文本信息</span>
+                                    <el-button v-if="!enableEditText" type="primary" size="small" @click="newOCRTask">
                                         <el-icon>
                                             <Edit />
                                         </el-icon>
