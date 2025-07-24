@@ -32,7 +32,12 @@ const router = createRouter({
       path: '/manage',
       name: 'manage',
       component: () => import('../views/ManageView.vue')
-    }
+    },
+    {
+      path: '/diary',
+      name: 'diary',
+      component: () => import('../views/DiaryView.vue')
+    },
   ],
 })
 
