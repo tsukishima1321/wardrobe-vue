@@ -1,7 +1,7 @@
 <script setup lang="ts">
 
 import favicon from '@/assets/icons/favicon.ico';
-import { Management, Search, UploadFilled,ChatSquare } from '@element-plus/icons-vue';
+import { Management, Picture, UploadFilled,ChatSquare } from '@element-plus/icons-vue';
 
 </script>
 
@@ -14,11 +14,8 @@ import { Management, Search, UploadFilled,ChatSquare } from '@element-plus/icons
                 <ChatSquare />
             </el-icon>日记</el-menu-item>
         <el-menu-item index="/search"><el-icon>
-                <Search />
-            </el-icon>搜索</el-menu-item>
-        <el-menu-item index="/upload"><el-icon>
-                <UploadFilled />
-            </el-icon>上传</el-menu-item>
+                <Picture />
+            </el-icon>图片</el-menu-item>
         <el-menu-item index="/manage"><el-icon>
                 <Management />
             </el-icon>管理</el-menu-item>

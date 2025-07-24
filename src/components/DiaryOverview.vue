@@ -3,56 +3,28 @@
     <!-- 顶部搜索栏 -->
     <el-card class="search-card" shadow="never">
       <div class="search-container">
-        <el-row :gutter="20">
-          <el-col :xs="24" :sm="24" :md="8" :lg="8">
-            <el-input
-              v-model="searchKey"
-              placeholder="搜索日记内容..."
-              :prefix-icon="Search"
-              clearable
-              @keyup.enter="handleSearch"
-              class="search-input"
-            />
-          </el-col>
-          <el-col :xs="12" :sm="12" :md="6" :lg="6">
-            <el-date-picker
-              v-model="dateFrom"
-              type="date"
-              placeholder="开始日期"
-              format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
-              class="date-picker"
-            />
-          </el-col>
-          <el-col :xs="12" :sm="12" :md="6" :lg="6">
-            <el-date-picker
-              v-model="dateTo"
-              type="date"
-              placeholder="结束日期"
-              format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
-              class="date-picker"
-            />
-          </el-col>
-          <el-col :xs="24" :sm="24" :md="4" :lg="4">
-            <div class="search-buttons">
-              <el-button type="primary" @click="handleSearch" :icon="Search">搜索</el-button>
-              <el-button @click="clearSearch" plain>清空</el-button>
-            </div>
-          </el-col>
-        </el-row>
+        <div class="search-row">
+          <div class="search-input-group">
+            <el-input v-model="searchKey" placeholder="搜索日记内容..." :prefix-icon="Search" clearable
+              @keyup.enter="handleSearch" class="search-input-main" />
+            <el-date-picker v-model="dateFrom" type="date" placeholder="开始日期" format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD" class="date-picker" />
+            <el-date-picker v-model="dateTo" type="date" placeholder="结束日期" format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD" class="date-picker" />
+          </div>
+          <div class="search-buttons">
+            <el-button type="primary" @click="handleSearch" :icon="Search">搜索</el-button>
+            <el-button @click="clearSearch" plain>清空</el-button>
+          </div>
+        </div>
       </div>
-    </el-card>
-
-    <!-- 工具栏 -->
-    <el-card class="toolbar-card" shadow="never">
       <div class="toolbar">
         <el-button type="primary" @click="showNewDiaryDialog" :icon="Plus">新建日记</el-button>
         <div class="toolbar-right">
-          <el-select v-model="orderBy" placeholder="排序字段" style="width: 120px;">
+          <el-select v-model="orderBy" placeholder="排序字段" class="sort-select">
             <el-option label="日期" value="date" />
           </el-select>
-          <el-select v-model="order" placeholder="排序" style="width: 100px;">
+          <el-select v-model="order" placeholder="排序" class="order-select">
             <el-option label="降序" value="desc" />
             <el-option label="升序" value="asc" />
           </el-select>
@@ -63,34 +35,16 @@
     <!-- 日记列表 -->
     <div class="diary-list-container">
       <el-empty v-if="textList.length === 0 && !loading" description="暂无日记" />
-      
+
       <div v-else class="diary-list">
-        <el-card 
-          v-for="diary in textList" 
-          :key="diary.id" 
-          class="diary-item"
-          shadow="hover"
-          @click="viewDiary(diary)"
-        >
+        <el-card v-for="diary in textList" :key="diary.id" class="diary-item" shadow="hover" @click="viewDiary(diary)">
           <div class="diary-header">
             <div class="diary-date">{{ formatDate(diary.date) }}</div>
             <div class="diary-actions">
-              <el-button 
-                type="primary" 
-                text 
-                :icon="Edit" 
-                @click.stop="editDiary(diary)"
-                size="small"
-              >
+              <el-button type="primary" text :icon="Edit" @click.stop="editDiary(diary)" size="small">
                 编辑
               </el-button>
-              <el-button 
-                type="danger" 
-                text 
-                :icon="Delete" 
-                @click.stop="deleteDiary(diary)"
-                size="small"
-              >
+              <el-button type="danger" text :icon="Delete" @click.stop="deleteDiary(diary)" size="small">
                 删除
               </el-button>
             </div>
@@ -100,67 +54,34 @@
           </div>
         </el-card>
       </div>
-
-      <!-- 分页 -->
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="currentPage"
-          :page-size="pageSize"
-          :total="totalPage * pageSize"
-          layout="prev, pager, next, jumper"
-          @current-change="handlePageChange"
-          :hide-on-single-page="true"
-        />
-      </div>
     </div>
+    <Pagination @pageChanged="pageChanged" :maxPage="totalPage" />
 
     <!-- 新建/编辑日记对话框 -->
-    <el-dialog
-      v-model="diaryDialogVisible"
-      :title="isEditing ? '编辑日记' : '新建日记'"
-      width="90%"
-      :max-width="800"
-      @close="closeDiaryDialog"
-    >
+    <el-dialog v-model="diaryDialogVisible" :title="isEditing ? '编辑日记' : '新建日记'" width="90%" :max-width="800"
+      @close="closeDiaryDialog">
       <el-form :model="diaryForm" label-width="80px">
         <el-form-item label="日期" required>
-          <el-date-picker
-            v-model="diaryForm.date"
-            type="date"
-            placeholder="选择日期"
-            format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD"
-            style="width: 100%;"
-          />
+          <el-date-picker v-model="diaryForm.date" type="date" placeholder="选择日期" format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD" style="width: 100%" />
         </el-form-item>
         <el-form-item label="内容" required>
-          <el-input
-            v-model="diaryForm.text"
-            type="textarea"
-            :rows="10"
-            placeholder="写下今天的记录..."
-            maxlength="5000"
-            show-word-limit
-          />
+          <el-input v-model="diaryForm.text" type="textarea" :rows="10" placeholder="写下今天的记录..." maxlength="5000"
+            show-word-limit />
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="closeDiaryDialog">取消</el-button>
           <el-button type="primary" @click="saveDiary" :loading="saving">
-            {{ isEditing ? '保存' : '创建' }}
+            {{ isEditing ? "保存" : "创建" }}
           </el-button>
         </div>
       </template>
     </el-dialog>
 
     <!-- 日记详情对话框 -->
-    <el-dialog
-      v-model="viewDialogVisible"
-      title="日记详情"
-      width="90%"
-      :max-width="800"
-    >
+    <el-dialog v-model="viewDialogVisible" title="日记详情" width="90%" :max-width="800">
       <div v-if="selectedDiary" class="diary-detail">
         <div class="detail-header">
           <h3>{{ formatDate(selectedDiary.date) }}</h3>
@@ -180,51 +101,52 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { fetchDataAutoRetry } from '@/token'
-import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
-import { Search, Plus, Edit, Delete } from '@element-plus/icons-vue'
+import { ref, onMounted } from "vue";
+import { fetchDataAutoRetry } from "@/token";
+import { useRouter } from "vue-router";
+import { ElMessage, ElMessageBox, ElLoading } from "element-plus";
+import { Search, Plus, Edit, Delete } from "@element-plus/icons-vue";
+import Pagination from "./Pagination.vue";
 
-const router = useRouter()
+const router = useRouter();
 
 // 搜索相关
-const searchKey = ref('')
-const dateFrom = ref('')
-const dateTo = ref('')
-const orderBy = ref('date')
-const order = ref('desc')
-const pageSize = ref(20)
-const currentPage = ref(1)
-const totalPage = ref(0)
-const loading = ref(false)
+const searchKey = ref("");
+const dateFrom = ref("");
+const dateTo = ref("");
+const orderBy = ref("date");
+const order = ref("desc");
+const pageSize = ref(20);
+const currentPage = ref(1);
+const totalPage = ref(0);
+const loading = ref(false);
 
 // 日记列表
 interface DiaryItem {
-  id: number
-  date: string
-  text: string
+  id: number;
+  date: string;
+  text: string;
 }
 
-const textList = ref<DiaryItem[]>([])
+const textList = ref<DiaryItem[]>([]);
 
 // 对话框相关
-const diaryDialogVisible = ref(false)
-const viewDialogVisible = ref(false)
-const isEditing = ref(false)
-const saving = ref(false)
-const selectedDiary = ref<DiaryItem | null>(null)
+const diaryDialogVisible = ref(false);
+const viewDialogVisible = ref(false);
+const isEditing = ref(false);
+const saving = ref(false);
+const selectedDiary = ref<DiaryItem | null>(null);
 
 // 表单数据
 const diaryForm = ref({
   id: 0,
-  date: new Date().toISOString().split('T')[0],
-  text: ''
-})
+  date: new Date().toISOString().split("T")[0],
+  text: "",
+});
 
 // 搜索日记
 const searchDiaries = async () => {
-  loading.value = true
+  loading.value = true;
   try {
     const params = {
       searchKey: searchKey.value,
@@ -233,198 +155,238 @@ const searchDiaries = async () => {
       orderBy: orderBy.value,
       order: order.value,
       pageSize: pageSize.value,
-      page: currentPage.value
-    }
+      page: currentPage.value,
+    };
 
-    const response = await fetchDataAutoRetry('/api/diary/search/', params, 'POST') as {
-      totalPage: number
-      textList: DiaryItem[]
-    }
+    const response = (await fetchDataAutoRetry("/api/diary/search/", params, "POST")) as {
+      totalPage: number;
+      textList: DiaryItem[];
+    };
 
-    textList.value = response.textList
-    totalPage.value = response.totalPage
+    textList.value = response.textList;
+    totalPage.value = response.totalPage;
   } catch (error) {
-    console.error('搜索日记失败:', error)
-    ElMessage.error('搜索日记失败，请重试')
-    router.push('/login')
+    console.error("搜索日记失败:", error);
+    ElMessage.error("搜索日记失败，请重试");
+    router.push("/login");
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 // 处理搜索
 const handleSearch = () => {
-  currentPage.value = 1
-  searchDiaries()
-}
+  currentPage.value = 1;
+  searchDiaries();
+};
 
 // 清空搜索
 const clearSearch = () => {
-  searchKey.value = ''
-  dateFrom.value = ''
-  dateTo.value = ''
-  currentPage.value = 1
-  searchDiaries()
-}
+  searchKey.value = "";
+  dateFrom.value = "";
+  dateTo.value = "";
+  currentPage.value = 1;
+  searchDiaries();
+};
 
 // 分页处理
-const handlePageChange = (page: number) => {
-  currentPage.value = page
-  searchDiaries()
-}
+const pageChanged = (page: number) => {
+  currentPage.value = page;
+  searchDiaries();
+};
 
 // 格式化日期
 const formatDate = (dateStr: string) => {
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long'
-  })
-}
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("zh-CN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  });
+};
 
 // 获取预览文本
 const getPreviewText = (text: string) => {
-  return text.length > 150 ? text.substring(0, 150) + '...' : text
-}
+  return text.length > 150 ? text.substring(0, 150) + "..." : text;
+};
 
 // 查看日记详情
 const viewDiary = (diary: DiaryItem) => {
-  selectedDiary.value = diary
-  viewDialogVisible.value = true
-}
+  selectedDiary.value = diary;
+  viewDialogVisible.value = true;
+};
 
 // 显示新建日记对话框
 const showNewDiaryDialog = () => {
-  isEditing.value = false
+  isEditing.value = false;
   diaryForm.value = {
     id: 0,
-    date: new Date().toISOString().split('T')[0],
-    text: ''
-  }
-  diaryDialogVisible.value = true
-}
+    date: new Date().toISOString().split("T")[0],
+    text: "",
+  };
+  diaryDialogVisible.value = true;
+};
 
 // 编辑日记
 const editDiary = (diary: DiaryItem | null) => {
-  if (!diary) return
-  
-  isEditing.value = true
+  if (!diary) return;
+
+  isEditing.value = true;
   diaryForm.value = {
     id: diary.id,
     date: diary.date,
-    text: diary.text
-  }
-  viewDialogVisible.value = false
-  diaryDialogVisible.value = true
-}
+    text: diary.text,
+  };
+  viewDialogVisible.value = false;
+  diaryDialogVisible.value = true;
+};
 
 // 保存日记
 const saveDiary = async () => {
   if (!diaryForm.value.date || !diaryForm.value.text.trim()) {
-    ElMessage.warning('请填写完整的日记信息')
-    return
+    ElMessage.warning("请填写完整的日记信息");
+    return;
   }
 
-  saving.value = true
+  saving.value = true;
   try {
     if (isEditing.value) {
       // 编辑日记
-      await fetchDataAutoRetry('/api/diary/edit/', {
-        id: diaryForm.value.id,
-        date: diaryForm.value.date,
-        text: diaryForm.value.text
-      }, 'POST')
-      ElMessage.success('日记更新成功')
+      await fetchDataAutoRetry(
+        "/api/diary/edit/",
+        {
+          id: diaryForm.value.id,
+          date: diaryForm.value.date,
+          text: diaryForm.value.text,
+        },
+        "POST"
+      );
+      ElMessage.success("日记更新成功");
     } else {
       // 新建日记
-      await fetchDataAutoRetry('/api/diary/new/', {
-        date: diaryForm.value.date,
-        text: diaryForm.value.text
-      }, 'POST')
-      ElMessage.success('日记创建成功')
+      await fetchDataAutoRetry(
+        "/api/diary/new/",
+        {
+          date: diaryForm.value.date,
+          text: diaryForm.value.text,
+        },
+        "POST"
+      );
+      ElMessage.success("日记创建成功");
     }
-    
-    closeDiaryDialog()
-    searchDiaries() // 刷新列表
+
+    closeDiaryDialog();
+    searchDiaries(); // 刷新列表
   } catch (error) {
-    console.error('保存日记失败:', error)
-    ElMessage.error('保存日记失败，请重试')
-    router.push('/login')
+    console.error("保存日记失败:", error);
+    ElMessage.error("保存日记失败，请重试");
+    router.push("/login");
   } finally {
-    saving.value = false
+    saving.value = false;
   }
-}
+};
 
 // 删除日记
 const deleteDiary = (diary: DiaryItem) => {
-  ElMessageBox.confirm('确认删除这篇日记吗？删除后不可恢复。', '确认删除', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(async () => {
-    try {
-      await fetchDataAutoRetry('/api/diary/delete/', {
-        id: diary.id
-      }, 'POST')
-      ElMessage.success('日记删除成功')
-      searchDiaries() // 刷新列表
-    } catch (error) {
-      console.error('删除日记失败:', error)
-      ElMessage.error('删除日记失败，请重试')
-      router.push('/login')
-    }
-  }).catch(() => {
-    // 用户取消
+  ElMessageBox.confirm("确认删除这篇日记吗？删除后不可恢复。", "确认删除", {
+    confirmButtonText: "确定",
+    cancelButtonText: "取消",
+    type: "warning",
   })
-}
+    .then(async () => {
+      try {
+        await fetchDataAutoRetry(
+          "/api/diary/delete/",
+          {
+            id: diary.id,
+          },
+          "POST"
+        );
+        ElMessage.success("日记删除成功");
+        searchDiaries(); // 刷新列表
+      } catch (error) {
+        console.error("删除日记失败:", error);
+        ElMessage.error("删除日记失败，请重试");
+        router.push("/login");
+      }
+    })
+    .catch(() => {
+      // 用户取消
+    });
+};
 
 // 关闭对话框
 const closeDiaryDialog = () => {
-  diaryDialogVisible.value = false
+  diaryDialogVisible.value = false;
   diaryForm.value = {
     id: 0,
-    date: new Date().toISOString().split('T')[0],
-    text: ''
-  }
-}
+    date: new Date().toISOString().split("T")[0],
+    text: "",
+  };
+};
 
 // 初始化
 onMounted(() => {
-  searchDiaries()
-})
+  searchDiaries();
+});
 </script>
 
 <style scoped>
 .diary-overview {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  width: 100%;
+  height: auto;
   min-height: 100vh;
-  padding: 20px;
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
-.search-card,
-.toolbar-card {
+.search-card {
+  width: 90%;
+  margin-top: 10px;
   margin-bottom: 20px;
   border-radius: 12px;
 }
 
 .search-container {
-  width: 100%;
+  margin-bottom: 15px;
 }
 
-.search-input {
-  width: 100%;
+.search-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.search-input-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 300px;
+  flex-wrap: wrap;
+}
+
+.search-input-main {
+  flex: 1;
+  min-width: 200px;
 }
 
 .date-picker {
-  width: 100%;
+  width: 140px;
+  flex-shrink: 0;
 }
 
 .search-buttons {
   display: flex;
   gap: 10px;
-  width: 100%;
+  flex-shrink: 0;
 }
 
 .toolbar {
@@ -433,6 +395,8 @@ onMounted(() => {
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
+  padding-top: 15px;
+  border-top: 1px solid #ebeef5;
 }
 
 .toolbar-right {
@@ -441,8 +405,16 @@ onMounted(() => {
   align-items: center;
 }
 
+.sort-select {
+  width: 120px;
+}
+
+.order-select {
+  width: 100px;
+}
+
 .diary-list-container {
-  max-width: 1200px;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
@@ -493,12 +465,6 @@ onMounted(() => {
   white-space: pre-wrap;
 }
 
-.pagination-container {
-  display: flex;
-  justify-content: center;
-  margin-top: 30px;
-}
-
 .diary-detail {
   max-height: 60vh;
   overflow-y: auto;
@@ -533,58 +499,99 @@ onMounted(() => {
   .diary-overview {
     padding: 10px;
   }
-  
+
+  .search-card {
+    width: 95%;
+  }
+
+  .search-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+
+  .search-input-group {
+    flex-direction: column;
+    gap: 12px;
+    min-width: auto;
+  }
+
+  .search-input-main {
+    min-width: auto;
+  }
+
+  .date-picker {
+    width: 100%;
+  }
+
   .search-buttons {
     justify-content: center;
-    margin-top: 10px;
+    width: 100%;
   }
-  
+
   .search-buttons .el-button {
     flex: 1;
+    max-width: 120px;
   }
-  
+
   .toolbar {
     flex-direction: column;
     align-items: stretch;
     gap: 15px;
   }
-  
+
   .toolbar-right {
     justify-content: center;
+    gap: 15px;
   }
-  
+
+  .sort-select,
+  .order-select {
+    width: 140px;
+  }
+
   .diary-list {
     grid-template-columns: 1fr;
   }
-  
+
   .diary-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
   }
-  
+
   .diary-actions {
     align-self: flex-end;
   }
-  
+
   .diary-date {
     font-size: 14px;
   }
-  
+
   .diary-preview {
     font-size: 14px;
   }
 }
 
-@media (min-width: 769px) {
-  .diary-overview {
-    padding: 30px;
+@media (min-width: 769px) and (max-width: 1024px) {
+  .search-input-group {
+    flex-wrap: nowrap;
   }
-  
+
+  .date-picker {
+    width: 130px;
+  }
+
+  .diary-list {
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  }
+}
+
+@media (min-width: 769px) {
   .diary-list {
     grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
   }
-  
+
   .search-buttons .el-button {
     min-width: 80px;
   }
@@ -593,6 +600,10 @@ onMounted(() => {
 @media (min-width: 1200px) {
   .diary-list {
     grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+  }
+
+  .search-input-group {
+    max-width: 70%;
   }
 }
 </style>
