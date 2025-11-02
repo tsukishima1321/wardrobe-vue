@@ -4,6 +4,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElLoading } from 'element-plus';
 import type { UploadFile } from 'element-plus';
+import { debounce } from 'lodash';
 
 const router = useRouter();
 
@@ -18,6 +19,16 @@ const loading = ref(false);
 // new: keywords and properties
 const keywords = ref<string[]>([]);
 const newKeyword = ref('');
+const keywordsHint = ref<Array<string>>([]);
+const propertiesHint = ref<Array<string>>([]);
+
+const updateSearchHint = debounce(async () => {
+    let data = await fetchDataAutoRetry('/api/searchhint/', {}, 'GET') as { keywords: Array<string>, properties: Array<string> };
+    keywordsHint.value = data.keywords;
+    propertiesHint.value = data.properties;
+}, 300);
+
+updateSearchHint();
 
 type PropItem = { name: string; value: string };
 const properties = ref<PropItem[]>([]);
@@ -41,19 +52,6 @@ const handleRemove = () => {
     previewImageUrl.value = '';
 };
 
-// keywords helpers
-const addKeyword = () => {
-    const v = newKeyword.value.trim();
-    if (!v) return;
-    if (!keywords.value.includes(v)) {
-        keywords.value.push(v);
-    }
-    newKeyword.value = '';
-};
-
-const removeKeyword = (index: number) => {
-    keywords.value.splice(index, 1);
-};
 
 // properties helpers
 const addProperty = () => {
@@ -230,21 +228,12 @@ const submitEdit = async () => {
                             <el-form-item label="关键词">
                                 <el-col>
                                     <el-row :gutter="8">
-                                        <el-col :span="18">
-                                            <el-input v-model="newKeyword" placeholder="输入关键词后回车或点击添加"
-                                                @keyup.enter="addKeyword" clearable />
-                                        </el-col>
-                                        <el-col :span="6">
-                                            <el-button type="primary" @click="addKeyword"
-                                                style="width: 100%;">添加</el-button>
-                                        </el-col>
-                                    </el-row>
-                                    <el-row :gutter="8">
-                                        <div style="margin-top: 8px; display:flex; gap:8px; flex-wrap:wrap;">
-                                            <el-tag v-for="(kw, idx) in keywords" :key="kw + idx" closable
-                                                @close="removeKeyword(idx)">
-                                                {{ kw }}
-                                            </el-tag>
+                                        <div class="keywords-row" style="display:flex; align-items:center; gap:10px;">
+                                            <ElSelect v-model="keywords" multiple filterable allow-create
+                                                placeholder="选择或输入关键词" style="flex: 3; min-width: 200px;">
+                                                <ElOption v-for="k in keywordsHint" :key="k" :label="k"
+                                                    :value="k" />
+                                            </ElSelect>
                                         </div>
                                     </el-row>
                                 </el-col>
