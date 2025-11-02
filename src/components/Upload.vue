@@ -7,6 +7,7 @@ import type { UploadFile } from 'element-plus';
 
 const router = useRouter();
 
+// basic fields
 const types = ref<Array<string>>([]);
 const typeSelected = ref('');
 const imgTitle = ref('');
@@ -15,6 +16,15 @@ const isOCR = ref(true);
 const fileList = ref<UploadFile[]>([]);
 const previewImageUrl = ref('');
 const loading = ref(false);
+
+// new: keywords and properties
+const keywords = ref<string[]>([]);
+const newKeyword = ref('');
+
+type PropItem = { name: string; value: string };
+const properties = ref<PropItem[]>([]);
+const propName = ref('');
+const propValue = ref('');
 
 const handleFileChange = (file: UploadFile) => {
     if (file.raw) {
@@ -31,6 +41,37 @@ const handleFileChange = (file: UploadFile) => {
 const handleRemove = () => {
     fileList.value = [];
     previewImageUrl.value = '';
+};
+
+// keywords helpers
+const addKeyword = () => {
+    const v = newKeyword.value.trim();
+    if (!v) return;
+    if (!keywords.value.includes(v)) {
+        keywords.value.push(v);
+    }
+    newKeyword.value = '';
+};
+
+const removeKeyword = (index: number) => {
+    keywords.value.splice(index, 1);
+};
+
+// properties helpers
+const addProperty = () => {
+    const name = propName.value.trim();
+    const value = propValue.value.trim();
+    if (!name || !value) {
+        ElMessage.warning('属性名和值都不能为空');
+        return;
+    }
+    properties.value.push({ name, value });
+    propName.value = '';
+    propValue.value = '';
+};
+
+const removeProperty = (index: number) => {
+    properties.value.splice(index, 1);
 };
 
 const submitEdit = async () => {
@@ -64,6 +105,10 @@ const submitEdit = async () => {
         formData.append('type', typeSelected.value);
         formData.append('date', imgDate.value);
         formData.append('doOCR', isOCR.value ? 'true' : 'false');
+
+        // append new fields as JSON strings (assumption: backend accepts JSON)
+        formData.append('keywords', JSON.stringify(keywords.value));
+        formData.append('properties', JSON.stringify(properties.value));
 
         const url = '/api/image/new/';
         const token = localStorage.getItem('wardrobe-access-token');
@@ -116,12 +161,9 @@ const submitEdit = async () => {
         fileList.value = [];
         previewImageUrl.value = '';
         imgTitle.value = '';
-        imgDate.value = new Date().toISOString().split('T')[0];
-        // 为便于连续上传，不重置ocr和类型选择
-        // isOCR.value = true;
-        // if (types.value.length > 0) {
-        //    typeSelected.value = types.value[0];
-        // }
+        keywords.value = [];
+        properties.value = [];
+        // 为便于连续上传，不重置ocr和类型选择和日期
     } catch (error) {
         console.error('Upload error:', error);
         ElMessage.error('上传失败!');
@@ -206,6 +248,56 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
                             <!-- OCR 开关 -->
                             <el-form-item label="启用OCR">
                                 <el-switch v-model="isOCR" active-text="是" inactive-text="否" />
+                            </el-form-item>
+
+                            <!-- 关键词 -->
+                            <el-form-item label="关键词">
+                                <el-col>
+                                    <el-row :gutter="8">
+                                        <el-col :span="18">
+                                            <el-input v-model="newKeyword" placeholder="输入关键词后回车或点击添加"
+                                                @keyup.enter="addKeyword" clearable />
+                                        </el-col>
+                                        <el-col :span="6">
+                                            <el-button type="primary" @click="addKeyword"
+                                                style="width: 100%;">添加</el-button>
+                                        </el-col>
+                                    </el-row>
+                                    <el-row :gutter="8">
+                                        <div style="margin-top: 8px; display:flex; gap:8px; flex-wrap:wrap;">
+                                            <el-tag v-for="(kw, idx) in keywords" :key="kw + idx" closable
+                                                @close="removeKeyword(idx)">
+                                                {{ kw }}
+                                            </el-tag>
+                                        </div>
+                                    </el-row>
+                                </el-col>
+                            </el-form-item>
+
+                            <!-- 属性（可重复） -->
+                            <el-form-item label="属性">
+                                <el-col>
+                                    <el-row :gutter="8">
+                                        <el-col :span="10">
+                                            <el-input v-model="propName" placeholder="属性名" clearable />
+                                        </el-col>
+                                        <el-col :span="10">
+                                            <el-input v-model="propValue" placeholder="属性值" clearable />
+                                        </el-col>
+                                        <el-col :span="4">
+                                            <el-button type="primary" @click="addProperty"
+                                                style="width: 100%;">添加</el-button>
+                                        </el-col>
+                                    </el-row>
+                                    <el-row>
+                                        <div style="margin-top: 8px; display:flex; gap:8px; flex-wrap:wrap;">
+                                            <el-tag v-for="(p, i) in properties" :key="p.name + p.value + i" closable
+                                                @close="removeProperty(i)">
+                                                {{ p.name }}: {{ p.value }}
+                                            </el-tag>
+                                        </div>
+                                    </el-row>
+                                </el-col>
                             </el-form-item>
 
                             <!-- 提交按钮 -->
@@ -306,7 +398,6 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
     .el-col {
         width: 100% !important;
         max-width: 100% !important;
-        margin-bottom: 20px;
     }
 
     .preview-card,

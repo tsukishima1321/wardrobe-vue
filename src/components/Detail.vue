@@ -12,10 +12,22 @@ const enableEdit = ref(false);
 const enableEditText = ref(false);
 const types = ref<Array<string>>([]);
 
+interface ImageProperty {
+    name: string;
+    value: string;
+}
+
 const typeSelected = ref('');
 const imgTitle = ref('');
 const imgText = ref('');
 const imgDate = ref('');
+const keywords = ref<string[]>([]);
+const newKeyword = ref('');
+const keywordActionPending = ref(false);
+const propertys = ref<ImageProperty[]>([]);
+const newPropertyName = ref('');
+const newPropertyValue = ref('');
+const propertyActionPending = ref(false);
 
 // 缩放相关状态
 const zoomLevel = ref(1);
@@ -28,24 +40,32 @@ interface imgData {
     title: string,
     type: string,
     date: string,
-    text: string
+    text: string,
+    keywords?: Array<string>,
+    propertys?: Array<ImageProperty>
 }
 
-const loadImg = () => {
-    fetchDataAutoRetry(`/api/image/get/`, { src: imgSrc.value }, 'POST').then((res) => {
+const loadImg = async () => {
+    try {
+        const res = await fetchDataAutoRetry(`/api/image/get/`, { src: imgSrc.value }, 'POST');
         const r = res as imgData;
         imgTitle.value = r.title;
         imgText.value = r.text;
         imgDate.value = r.date;
         typeSelected.value = r.type;
-    }).catch(() => {
+        const keywordsData = await fetchDataAutoRetry(`/api/keyword/list/`, { src: imgSrc.value }, 'POST');
+        keywords.value = keywordsData as Array<string>;
+        const propertysData = await fetchDataAutoRetry(`/api/property/list/`, { src: imgSrc.value }, 'POST');
+        propertys.value = propertysData as Array<ImageProperty>;
+    } catch {
         router.push('/login');
-    });
-    GetBlobImgSrc("/imagebed/" + imgSrc.value).then((res) => {
-        blobSrc.value = res;
-    }).catch(() => {
+    }
+
+    try {
+        blobSrc.value = await GetBlobImgSrc("/imagebed/" + imgSrc.value);
+    } catch {
         router.push('/login');
-    });
+    }
 }
 
 const startEdit = () => {
@@ -77,10 +97,10 @@ const submitEdit = async () => {
             date: imgDate.value,
         };
 
-        await fetchDataAutoRetry(`/api/image/set/`, data, 'POST');
-        enableEdit.value = false;
-        ElMessage.success('图片信息保存成功！');
-        loadImg();
+    await fetchDataAutoRetry(`/api/image/set/`, data, 'POST');
+    enableEdit.value = false;
+    ElMessage.success('图片信息保存成功！');
+    await loadImg();
     } catch (error) {
         console.error('Save failed:', error);
         ElMessage.error('保存失败，请重试');
@@ -112,10 +132,10 @@ const submitEditText = async () => {
             text: imgText.value
         };
 
-        await fetchDataAutoRetry(`/api/text/set/`, data, 'POST');
-        enableEditText.value = false;
-        ElMessage.success('图片文本保存成功！');
-        loadImg();
+    await fetchDataAutoRetry(`/api/text/set/`, data, 'POST');
+    enableEditText.value = false;
+    ElMessage.success('图片文本保存成功！');
+    await loadImg();
     } catch (error) {
         console.error('Save text failed:', error);
         ElMessage.error('保存失败，请重试');
@@ -131,6 +151,96 @@ const newOCRTask = async () => {
     }).catch(() => {
         ElMessage.error('创建OCR任务失败，请重试');
     });
+}
+
+const addKeyword = async () => {
+    const keyword = newKeyword.value.trim();
+    if (!keyword) {
+        ElMessage.warning('请输入关键词');
+        return;
+    }
+    if (keywords.value.includes(keyword)) {
+        ElMessage.warning('关键词已存在');
+        return;
+    }
+    if (keywordActionPending.value) {
+        return;
+    }
+    keywordActionPending.value = true;
+    try {
+        await fetchDataAutoRetry(`/api/keyword/create/`, { src: imgSrc.value, keyword: keyword }, 'POST');
+        newKeyword.value = '';
+        ElMessage.success('关键词添加成功');
+        await loadImg();
+    } catch (error) {
+        console.error('Add keyword failed:', error);
+        ElMessage.error('添加关键词失败，请重试');
+    } finally {
+        keywordActionPending.value = false;
+    }
+}
+
+const removeKeyword = async (keyword: string) => {
+    if (keywordActionPending.value) {
+        return;
+    }
+    keywordActionPending.value = true;
+    try {
+        await fetchDataAutoRetry(`/api/keyword/delete/`, { src: imgSrc.value, keyword: keyword }, 'POST');
+        ElMessage.success('关键词已删除');
+        await loadImg();
+    } catch (error) {
+        console.error('Remove keyword failed:', error);
+        ElMessage.error('删除关键词失败，请重试');
+    } finally {
+        keywordActionPending.value = false;
+    }
+}
+
+const addProperty = async () => {
+    const name = newPropertyName.value.trim();
+    const value = newPropertyValue.value.trim();
+    if (!name || !value) {
+        ElMessage.warning('请输入完整的属性名和值');
+        return;
+    }
+    if (propertyActionPending.value) {
+        return;
+    }
+    propertyActionPending.value = true;
+    try {
+        await fetchDataAutoRetry(`/api/property/create/`, { src: imgSrc.value, name: name, value: value }, 'POST');
+        newPropertyName.value = '';
+        newPropertyValue.value = '';
+        ElMessage.success('属性添加成功');
+        await loadImg();
+    } catch (error) {
+        console.error('Add property failed:', error);
+        ElMessage.error('添加属性失败，请重试');
+    } finally {
+        propertyActionPending.value = false;
+    }
+}
+
+const removeProperty = async (attr: ImageProperty) => {
+    if (propertyActionPending.value) {
+        return;
+    }
+    propertyActionPending.value = true;
+    try {
+        await fetchDataAutoRetry(`/api/property/delete/`, {
+            src: imgSrc.value,
+            name: attr.name,
+            value: attr.value
+        }, 'POST');
+        ElMessage.success('属性已删除');
+        await loadImg();
+    } catch (error) {
+        console.error('Remove property failed:', error);
+        ElMessage.error('删除属性失败，请重试');
+    } finally {
+        propertyActionPending.value = false;
+    }
 }
 
 // 缩放控制函数
@@ -150,9 +260,9 @@ const resetZoom = () => {
     zoomLevel.value = 1;
 }
 
-fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
+fetchDataAutoRetry('/api/types/', {}, 'GET').then(async (res) => {
     types.value = res as Array<string>;
-    loadImg();
+    await loadImg();
 }).catch(() => {
     router.push('/login');
 });
@@ -254,7 +364,53 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
                                         :disabled="!enableEdit" />
                                 </el-form-item>
                             </el-form>
-                        </el-card>
+
+                            <!-- Compact combined Keywords & Properties inside Basic Info -->
+                            <div class="compact-section">
+                                <div class="compact-row">
+                                    <div class="compact-column">
+                                        <div class="section-title">关键词</div>
+
+                                        <div v-if="keywords.length" class="keyword-list compact-tags">
+                                            <el-tag v-for="keyword in keywords" :key="keyword" type="info" closable
+                                                @close="removeKeyword(keyword)">
+                                                {{ keyword }}
+                                            </el-tag>
+                                        </div>
+
+                                        <div class="keyword-form compact-forms">
+                                            <el-input v-model="newKeyword" placeholder="输入新关键词" clearable
+                                                :disabled="keywordActionPending" @keyup.enter="addKeyword" size="small" />
+                                            <el-button type="primary" :loading="keywordActionPending" @click="addKeyword" size="small">
+                                                添加
+                                            </el-button>
+                                        </div>
+                                    </div>
+
+                                    <div class="compact-column">
+                                        <div class="section-title">属性</div>
+
+                                        <div v-if="propertys.length" class="keyword-list compact-tags">
+                                            <el-tag v-for="prop in propertys" :key="prop.name + prop.value" type="success" closable
+                                                @close="removeProperty(prop)">
+                                                {{ prop.name }}：{{ prop.value }}
+                                            </el-tag>
+                                        </div>
+
+                                        <div class="property-form compact-forms">
+                                            <el-input v-model="newPropertyName" placeholder="属性名" clearable
+                                                :disabled="propertyActionPending" size="small" />
+                                            <el-input v-model="newPropertyValue" placeholder="属性值" clearable
+                                                :disabled="propertyActionPending" size="small" />
+                                            <el-button type="primary" :loading="propertyActionPending" @click="addProperty" size="small">
+                                                添加
+                                            </el-button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            </el-card>
 
                         <!-- 图片文本信息 -->
                         <el-card class="text-card" shadow="hover">
@@ -430,6 +586,71 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
 .image-slot .el-icon {
     font-size: 48px;
     margin-bottom: 8px;
+}
+
+.keyword-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.keyword-form {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.keyword-form :deep(.el-input) {
+    flex: 1;
+}
+
+.property-table {
+    margin-bottom: 12px;
+}
+
+.property-form {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.property-form :deep(.el-input) {
+    flex: 1;
+}
+
+/* Compact combined keywords & properties section */
+.compact-section {
+    padding: 8px 0 4px 0;
+}
+.compact-row {
+    display: flex;
+    gap: 20px;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.compact-column {
+    flex: 1;
+    min-width: 180px;
+}
+.section-title {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
+}
+.compact-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.compact-forms {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.compact-forms :deep(.el-input) {
+    flex: 1;
 }
 
 .el-form {
