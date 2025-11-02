@@ -6,10 +6,6 @@ import { Search } from '@element-plus/icons-vue';
 type PropItem = { name: string; value: string };
 
 const props = defineProps({
-  typeList: {
-    type: Array<string>,
-    default: []
-  },
   searchword: {
     type: String,
     default: ''
@@ -30,7 +26,6 @@ export interface SearchParams {
   sortOrder: string;
   dateFrom: string;
   dateTo: string;
-  typeFilter: Array<string>;
   searchByTitle: boolean;
   searchByContent: boolean;
   page: number;
@@ -54,7 +49,6 @@ const sortBy = computed(() => {
 const sortOrder = ref('降序');
 const dateFrom = ref('');
 const dateTo = ref('');
-const typeFilter = ref(['']);
 const searchByTitle = ref(true);
 const searchByContent = ref(false);
 const properties = ref<Array<PropItem>>([]);
@@ -62,9 +56,6 @@ const keywords = ref<Array<string>>([]);
 const propertyName = ref('');
 const propertyValue = ref('');
 
-watchEffect(() => {
-  typeFilter.value = props.typeList;
-})
 
 const emits = defineEmits<{
   updateValue: [params: SearchParams]
@@ -77,7 +68,6 @@ function sendValue() {
     sortOrder: sortOrder.value,
     dateFrom: dateFrom.value,
     dateTo: dateTo.value,
-    typeFilter: typeFilter.value,
     searchByTitle: searchByTitle.value,
     searchByContent: searchByContent.value,
     page: 0,
@@ -162,17 +152,6 @@ function removeProperty(index: number) {
       </ElCollapse>
     </div>
 
-    <!-- 类型过滤 -->
-    <div class="search-row">
-      <ElCollapse>
-        <ElCollapseItem title="类型过滤" name="type">
-          <ElCheckboxGroup v-model="typeFilter" class="type-filter">
-            <ElCheckbox v-for="type in props.typeList" :key="type" :value="type" :label="type" />
-          </ElCheckboxGroup>
-        </ElCollapseItem>
-      </ElCollapse>
-    </div>
-
     <!-- 关键词与属性过滤 -->
     <div class="search-row">
       <ElCollapse>
@@ -247,12 +226,6 @@ function removeProperty(index: number) {
 
 .date-filter {
   padding: 10px 0;
-}
-
-.type-filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
 }
 
 /* 响应式设计 */

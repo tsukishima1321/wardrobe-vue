@@ -17,7 +17,6 @@ const router = useRouter();
 const searchword = ref(router.currentRoute.value.params.searchword as string);
 const keywordsHint = ref<Array<string>>([]);
 const propertiesHint = ref<Array<string>>([]);
-const typeList = ref<Array<string>>([]);
 const totalPage = ref(99);
 const blobImgList = ref<Array<{ blobSrc: string, oriSrc: string, title: string, checked: boolean, date: Date }>>([]);
 const isPictureMode = ref(true);
@@ -31,12 +30,6 @@ const pageSize = computed(() => {
     }
 })
 
-fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
-    typeList.value = res as Array<string>;
-}).catch(() => {
-    router.push('/login');
-});
-
 const searchParams: SearchParams = {
     searchword: '',
     dateFrom: '',
@@ -45,7 +38,6 @@ const searchParams: SearchParams = {
     searchByContent: false,
     sortBy: '',
     sortOrder: '',
-    typeFilter: [''],
     page: 1
 };
 
@@ -83,7 +75,6 @@ const updateSearchPara = (params: SearchParams) => {
     searchParams.searchByContent = params.searchByContent;
     searchParams.sortBy = params.sortBy;
     searchParams.sortOrder = order;
-    searchParams.typeFilter = params.typeFilter;
     searchParams.keywords = params.keywords;
     searchParams.properties = params.properties;
     updateSearch();
@@ -114,7 +105,6 @@ const updateSearch = debounce(async () => {
         byFullText: searchParams.searchByContent,
         orderBy: searchParams.sortBy,
         order: searchParams.sortOrder,
-        type: searchParams.typeFilter.join('^'),
         pageSize: pageSize.value,
         keywords: searchParams.keywords,
         properties: searchParams.properties
@@ -215,24 +205,6 @@ const handleDownload = async () => {
     }
 }
 
-const handleMoveCategory = async (typename: string) => {
-    const selectedList = blobImgList.value.filter(item => item.checked).map(item => item.oriSrc);
-    if (selectedList.length === 0) {
-        ElMessage.warning('选择列表为空');
-        return;
-    }
-    if (typename) {
-        for (let item of selectedList) {
-            await fetchDataAutoRetry('/api/image/set/', { src: item, type: typename }, 'POST').then(() => {
-                ElMessage.success(`图片 ${item} 已移动到分类 ${typename}`);
-            }).catch(() => {
-                router.push('/login');
-            });
-        }
-        updateSearch();
-    }
-}
-
 const tableSelect = (selection: Array<{ blobSrc: string, oriSrc: string, title: string, checked: boolean, date: Date }>) => {
     blobImgList.value.forEach(item => {
         item.checked = selection.some(sel => sel.oriSrc === item.oriSrc);
@@ -250,10 +222,10 @@ const handleRowDoubleClidked = (row: { blobSrc: string, oriSrc: string, title: s
 <template>
     <div class="search">
         <el-container class="tool">
-            <SearchBar :typeList="typeList" :searchword="searchword" :keywords-hint="keywordsHint"
+            <SearchBar :searchword="searchword" :keywords-hint="keywordsHint"
                 :properties-hint="propertiesHint" @updateValue="updateSearchPara" />
-            <SearchToolBar :typeList="typeList" @delete="handleDelete" @download="handleDownload"
-                @switch-mode="handowSwitchMode" @moveCategory="handleMoveCategory" />
+            <SearchToolBar  @delete="handleDelete" @download="handleDownload"
+                @switch-mode="handowSwitchMode" />
         </el-container>
 
         <div v-if="renderPicture" class="masonryContainerContainer">

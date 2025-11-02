@@ -10,14 +10,12 @@ const imgSrc = ref(router.currentRoute.value.params.src);
 const blobSrc = ref('');
 const enableEdit = ref(false);
 const enableEditText = ref(false);
-const types = ref<Array<string>>([]);
 
 interface ImageProperty {
     name: string;
     value: string;
 }
 
-const typeSelected = ref('');
 const imgTitle = ref('');
 const imgText = ref('');
 const imgDate = ref('');
@@ -38,7 +36,6 @@ const zoomStep = 0.2;
 interface imgData {
     src: string,
     title: string,
-    type: string,
     date: string,
     text: string,
     keywords?: Array<string>,
@@ -52,7 +49,6 @@ const loadImg = async () => {
         imgTitle.value = r.title;
         imgText.value = r.text;
         imgDate.value = r.date;
-        typeSelected.value = r.type;
         const keywordsData = await fetchDataAutoRetry(`/api/keyword/list/`, { src: imgSrc.value }, 'POST');
         keywords.value = keywordsData as Array<string>;
         const propertysData = await fetchDataAutoRetry(`/api/property/list/`, { src: imgSrc.value }, 'POST');
@@ -93,7 +89,6 @@ const submitEdit = async () => {
         const data = {
             src: imgSrc.value,
             title: imgTitle.value,
-            type: typeSelected.value,
             date: imgDate.value,
         };
 
@@ -261,7 +256,6 @@ const resetZoom = () => {
 }
 
 fetchDataAutoRetry('/api/types/', {}, 'GET').then(async (res) => {
-    types.value = res as Array<string>;
     await loadImg();
 }).catch(() => {
     router.push('/login');
@@ -347,14 +341,6 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then(async (res) => {
                                 <el-form-item label="标题">
                                     <el-text v-if="!enableEdit" size="large">{{ imgTitle }}</el-text>
                                     <el-input v-else v-model="imgTitle" placeholder="请输入图片标题" clearable />
-                                </el-form-item>
-
-                                <!-- 图片类型 -->
-                                <el-form-item label="类型">
-                                    <el-select v-model="typeSelected" placeholder="请选择图片类型" style="width: 100%;"
-                                        :disabled="!enableEdit">
-                                        <el-option v-for="type in types" :key="type" :label="type" :value="type" />
-                                    </el-select>
                                 </el-form-item>
 
                                 <!-- 图片日期 -->

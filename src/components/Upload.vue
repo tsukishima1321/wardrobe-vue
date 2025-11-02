@@ -8,8 +8,6 @@ import type { UploadFile } from 'element-plus';
 const router = useRouter();
 
 // basic fields
-const types = ref<Array<string>>([]);
-const typeSelected = ref('');
 const imgTitle = ref('');
 const imgDate = ref(new Date().toISOString().split('T')[0]);
 const isOCR = ref(true);
@@ -85,11 +83,6 @@ const submitEdit = async () => {
         return;
     }
 
-    if (!typeSelected.value) {
-        ElMessage.warning('请选择图片类型');
-        return;
-    }
-
     loading.value = true;
     const loadingInstance = ElLoading.service({
         lock: true,
@@ -102,7 +95,6 @@ const submitEdit = async () => {
         const formData = new FormData();
         formData.append('image', imgFile);
         formData.append('title', imgTitle.value);
-        formData.append('type', typeSelected.value);
         formData.append('date', imgDate.value);
         formData.append('doOCR', isOCR.value ? 'true' : 'false');
 
@@ -173,15 +165,6 @@ const submitEdit = async () => {
     }
 };
 
-// 获取类型列表
-fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
-    types.value = res as Array<string>;
-    if (types.value.length > 0) {
-        typeSelected.value = types.value[0];
-    }
-}).catch(() => {
-    router.push('/login');
-});
 </script>
 
 <template>
@@ -226,17 +209,10 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
                             </div>
                         </template>
 
-                        <el-form :model="{ imgTitle, typeSelected, imgDate, isOCR }" label-width="100px" size="large">
+                        <el-form :model="{ imgTitle, imgDate, isOCR }" label-width="100px" size="large">
                             <!-- 图片标题 -->
                             <el-form-item label="图片标题" required>
                                 <el-input v-model="imgTitle" placeholder="请输入图片标题" clearable />
-                            </el-form-item>
-
-                            <!-- 图片类型 -->
-                            <el-form-item label="图片类型" required>
-                                <el-select v-model="typeSelected" placeholder="请选择图片类型" style="width: 100%;" clearable>
-                                    <el-option v-for="type in types" :key="type" :label="type" :value="type" />
-                                </el-select>
                             </el-form-item>
 
                             <!-- 图片日期 -->
