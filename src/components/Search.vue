@@ -14,7 +14,9 @@ import MasonryItemFigure from "./MasonryItemFigure.vue";
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 const router = useRouter();
-const keyword = ref(router.currentRoute.value.params.keyword as string);
+const searchword = ref(router.currentRoute.value.params.searchword as string);
+const keywordsHint = ref<Array<string>>([]);
+const propertiesHint = ref<Array<string>>([]);
 const typeList = ref<Array<string>>([]);
 const totalPage = ref(99);
 const blobImgList = ref<Array<{ blobSrc: string, oriSrc: string, title: string, checked: boolean, date: Date }>>([]);
@@ -36,7 +38,7 @@ fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
 });
 
 const searchParams: SearchParams = {
-    keyword: '',
+    searchword: '',
     dateFrom: '',
     dateTo: '',
     searchByTitle: false,
@@ -74,7 +76,7 @@ const updateSearchPara = (params: SearchParams) => {
         order = 'asc'
     }
     searchParams.page = 1;
-    searchParams.keyword = params.keyword;
+    searchParams.searchword = params.searchword;
     searchParams.dateFrom = params.dateFrom;
     searchParams.dateTo = params.dateTo;
     searchParams.searchByTitle = params.searchByTitle;
@@ -82,8 +84,18 @@ const updateSearchPara = (params: SearchParams) => {
     searchParams.sortBy = params.sortBy;
     searchParams.sortOrder = order;
     searchParams.typeFilter = params.typeFilter;
+    searchParams.keywords = params.keywords;
+    searchParams.properties = params.properties;
     updateSearch();
 }
+
+const updateSearchHint = debounce(async () => {
+    let data = await fetchDataAutoRetry('/api/searchhint/', {}, 'GET') as { keywords: Array<string>, properties: Array<string> };
+    keywordsHint.value = data.keywords;
+    propertiesHint.value = data.properties;
+}, 300);
+
+updateSearchHint();
 
 const updateSearch = debounce(async () => {
     console.log(searchParams);
@@ -94,7 +106,7 @@ const updateSearch = debounce(async () => {
         renderTable.value = false;
     }
     let para = {
-        searchKey: searchParams.keyword,
+        searchKey: searchParams.searchword,
         page: searchParams.page,
         dateFrom: searchParams.dateFrom,
         dateTo: searchParams.dateTo,
@@ -103,7 +115,9 @@ const updateSearch = debounce(async () => {
         orderBy: searchParams.sortBy,
         order: searchParams.sortOrder,
         type: searchParams.typeFilter.join('^'),
-        pageSize: pageSize.value
+        pageSize: pageSize.value,
+        keywords: searchParams.keywords,
+        properties: searchParams.properties
     };
     let data = await fetchDataAutoRetry('/api/search/', para) as SearchResponse;
     blobImgList.value = data.hrefList.map(item => ({
@@ -236,7 +250,8 @@ const handleRowDoubleClidked = (row: { blobSrc: string, oriSrc: string, title: s
 <template>
     <div class="search">
         <el-container class="tool">
-            <SearchBar :typeList="typeList" :keyword="keyword" @updateValue="updateSearchPara" />
+            <SearchBar :typeList="typeList" :searchword="searchword" :keywords-hint="keywordsHint"
+                :properties-hint="propertiesHint" @updateValue="updateSearchPara" />
             <SearchToolBar :typeList="typeList" @delete="handleDelete" @download="handleDownload"
                 @switch-mode="handowSwitchMode" @moveCategory="handleMoveCategory" />
         </el-container>

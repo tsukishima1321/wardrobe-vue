@@ -1,21 +1,31 @@
 <script setup lang="ts">
 import { ref, defineEmits, computed, watchEffect } from 'vue';
-import { ElInput, ElButton, ElCheckbox, ElSelect, ElOption, ElRadio, ElRadioGroup, ElDatePicker, ElCollapse, ElCollapseItem, ElCheckboxGroup, ElCard } from 'element-plus';
+import { ElInput, ElButton, ElCheckbox, ElSelect, ElOption, ElRadio, ElRadioGroup, ElDatePicker, ElCollapse, ElCollapseItem, ElCheckboxGroup, ElCard, ElTag } from 'element-plus';
 import { Search } from '@element-plus/icons-vue';
+
+type PropItem = { name: string; value: string };
 
 const props = defineProps({
   typeList: {
     type: Array<string>,
     default: []
   },
-  keyword: {
+  searchword: {
     type: String,
     default: ''
+  },
+  keywordsHint: {
+    type: Array<string>,
+    default: []
+  },
+  propertiesHint: {
+    type: Array<string>,
+    default: []
   }
 });
 
 export interface SearchParams {
-  keyword: string;
+  searchword: string;
   sortBy: string;
   sortOrder: string;
   dateFrom: string;
@@ -24,9 +34,11 @@ export interface SearchParams {
   searchByTitle: boolean;
   searchByContent: boolean;
   page: number;
+  keywords?: Array<string>;
+  properties?: Array<PropItem>;
 }
 
-const keyword = ref(props.keyword);
+const searchword = ref(props.searchword);
 const sortByText = ref('日期');
 const sortBy = computed(() => {
   switch (sortByText.value) {
@@ -45,6 +57,10 @@ const dateTo = ref('');
 const typeFilter = ref(['']);
 const searchByTitle = ref(true);
 const searchByContent = ref(false);
+const properties = ref<Array<PropItem>>([]);
+const keywords = ref<Array<string>>([]);
+const propertyName = ref('');
+const propertyValue = ref('');
 
 watchEffect(() => {
   typeFilter.value = props.typeList;
@@ -56,7 +72,7 @@ const emits = defineEmits<{
 
 function sendValue() {
   const searchParams: SearchParams = {
-    keyword: keyword.value,
+    searchword: searchword.value,
     sortBy: sortBy.value,
     sortOrder: sortOrder.value,
     dateFrom: dateFrom.value,
@@ -64,9 +80,32 @@ function sendValue() {
     typeFilter: typeFilter.value,
     searchByTitle: searchByTitle.value,
     searchByContent: searchByContent.value,
-    page: 0
+    page: 0,
+    keywords: keywords.value,
+    properties: properties.value
   }
   emits('updateValue', searchParams)
+}
+
+function addProperty() {
+  const name = (propertyName.value || '').toString().trim();
+  const value = (propertyValue.value || '').toString().trim();
+  if (!name || !value) {
+    return;
+  }
+  const idx = properties.value.findIndex(p => p.name === name);
+  if (idx >= 0) {
+    // replace existing value
+    properties.value[idx].value = value;
+  } else {
+    properties.value.push({ name, value });
+  }
+  propertyName.value = '';
+  propertyValue.value = '';
+}
+
+function removeProperty(index: number) {
+  properties.value.splice(index, 1);
 }
 
 </script>
@@ -75,7 +114,7 @@ function sendValue() {
   <ElCard class="search-card" shadow="hover">
     <!-- 搜索输入框 -->
     <div class="search-row">
-      <ElInput v-model="keyword" placeholder="请输入..." @change="sendValue" @keyup.enter="sendValue"
+      <ElInput v-model="searchword" placeholder="请输入..." @change="sendValue" @keyup.enter="sendValue"
         style="flex: 1; margin-right: 10px;" />
       <ElButton type="primary" :icon="Search" @click="sendValue">
         搜索
@@ -99,7 +138,7 @@ function sendValue() {
           <ElOption label="文件名" value="文件名" />
           <ElOption label="标题" value="标题" />
         </ElSelect>
-        <el-segmented v-model="sortOrder" :options="['升序','降序']" size="large" />
+        <el-segmented v-model="sortOrder" :options="['升序', '降序']" size="large" />
       </div>
     </div>
 
@@ -130,6 +169,42 @@ function sendValue() {
           <ElCheckboxGroup v-model="typeFilter" class="type-filter">
             <ElCheckbox v-for="type in props.typeList" :key="type" :value="type" :label="type" />
           </ElCheckboxGroup>
+        </ElCollapseItem>
+      </ElCollapse>
+    </div>
+
+    <!-- 关键词与属性过滤 -->
+    <div class="search-row">
+      <ElCollapse>
+        <ElCollapseItem title="关键词与属性" name="filters">
+          <div class="filters-section">
+            <!-- 关键词：可选提示或手动输入 -->
+            <div class="keywords-row" style="display:flex; align-items:center; gap:10px;">
+              <span class="sort-label">关键词:</span>
+              <ElSelect v-model="keywords" multiple filterable allow-create placeholder="选择或输入关键词"
+                style="flex: 3; min-width: 200px;">
+                <ElOption v-for="k in props.keywordsHint" :key="k" :label="k" :value="k" />
+              </ElSelect>
+            </div>
+
+            <!-- 属性：选择属性名（可新建） + 输入属性值 -->
+            <div class="properties-row" style="display:flex; align-items:center; gap:10px; margin-top:12px;">
+              <span class="sort-label">属性:</span>
+              <ElSelect v-model="propertyName" filterable allow-create placeholder="选择或输入属性名"
+                style="width:220px;">
+                <ElOption v-for="p in props.propertiesHint" :key="p" :label="p" :value="p" />
+              </ElSelect>
+              <ElInput v-model="propertyValue" placeholder="属性值" style="width:220px;" />
+              <ElButton type="primary" @click="addProperty">添加属性</ElButton>
+            </div>
+
+            <!-- 已添加的属性展示 -->
+            <div class="properties-list" style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+              <ElTag v-for="(prop, idx) in properties" :key="prop.name + '-' + idx" closable @close="removeProperty(idx)">
+                {{ prop.name }}: {{ prop.value }}
+              </ElTag>
+            </div>
+          </div>
         </ElCollapseItem>
       </ElCollapse>
     </div>

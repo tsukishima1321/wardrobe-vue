@@ -9,8 +9,8 @@ interface ImgInfo {
 }
 
 const props = defineProps({
-    defaultType: {
-        type: String,
+    defaultKeyword: {
+        keyword: String,
         default: ''
     }
 });
@@ -20,7 +20,7 @@ const router = useRouter();
 const pickedImg = ref('');
 let oriSrc: string = '';
 const pickImg = () => {
-    fetchDataAutoRetry(`/api/random/${typeSelected.value == '不限' ? '' : `?type=${typeSelected.value}`}`, {}, 'GET').then((res) => {
+    fetchDataAutoRetry(`/api/random/${keywordSelected.value == '不限' ? '' : `?keyword=${keywordSelected.value}`}`, {}, 'GET').then((res) => {
         const r = res as ImgInfo;
         GetBlobImgSrc("/imagebed/thumbnails/" + r.src).then((blobSrc) => {
             oriSrc = r.src;
@@ -33,15 +33,15 @@ const pickImg = () => {
     });
 };
 
-const types = ref<Array<string>>([]);
-const typeSelected = ref('');
-fetchDataAutoRetry('/api/types/', {}, 'GET').then((res) => {
-    types.value = res as Array<string>;
-    if (types.value.length > 0) {
-        if (types.value.includes(props.defaultType)) {
-            typeSelected.value = props.defaultType;
+const keywords = ref<Array<string>>([]);
+const keywordSelected = ref('');
+fetchDataAutoRetry('/api/searchhint/', {}, 'GET').then((res) => {
+    keywords.value = (res as { keywords: Array<string>, properties: Array<string> }).keywords;
+    if (keywords.value.length > 0) {
+        if (keywords.value.includes(props.defaultKeyword)) {
+            keywordSelected.value = props.defaultKeyword;
         } else {
-            typeSelected.value = '不限';
+            keywordSelected.value = '不限';
         }
     }
     pickImg();
@@ -61,9 +61,9 @@ const openDetail = () => {
             <el-image :src="pickedImg"></el-image>
         </div>
         <el-row>
-            <el-select id="typeSelected" v-model="typeSelected">
+            <el-select id="keywordSelected" v-model="keywordSelected">
                 <el-option :value="'不限'">不限</el-option>
-                <el-option v-for="type in types" :value="type">{{ type }}</el-option>
+                <el-option v-for="keyword in keywords" :value="keyword">{{ keyword }}</el-option>
             </el-select>
             <el-button id="randomButton" @click="pickImg">换一张</el-button>
             <el-button id="detailButton" @click="openDetail">查看详情</el-button>

@@ -45,7 +45,7 @@ const search = (keyword: string) => {
     <div v-if="isLogin" class="body">
         <div id="left-column">
             <div class="random-images">
-                <RandomImgPreview :defaultType="'美图'" />
+                <RandomImgPreview :defaultKeyword="'插画'" />
                 <RandomImgPreview />
             </div>
             <SearchBarSimple @updateValue="search" />
