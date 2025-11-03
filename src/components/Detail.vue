@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
 import { ref } from 'vue';
-import { ElMessage, ElLoading } from 'element-plus';
+import { ElMessage, ElLoading, ElInput } from 'element-plus';
 import { fetchDataAutoRetry, GetBlobImgSrc } from '../token.ts';
 import { ZoomIn, ZoomOut, Refresh, Picture, Edit, Check } from '@element-plus/icons-vue';
 
@@ -26,6 +26,8 @@ const propertys = ref<ImageProperty[]>([]);
 const newPropertyName = ref('');
 const newPropertyValue = ref('');
 const propertyActionPending = ref(false);
+const propertyNameInput = ref<InstanceType<typeof ElInput> | null>(null);
+const propertyValueInput = ref<InstanceType<typeof ElInput> | null>(null);
 
 // 缩放相关状态
 const zoomLevel = ref(1);
@@ -209,6 +211,7 @@ const addProperty = async () => {
         newPropertyValue.value = '';
         ElMessage.success('属性添加成功');
         await loadImg();
+        propertyNameInput.value?.focus();
     } catch (error) {
         console.error('Add property failed:', error);
         ElMessage.error('添加属性失败，请重试');
@@ -216,6 +219,17 @@ const addProperty = async () => {
         propertyActionPending.value = false;
     }
 }
+
+const focusPropertyValueInput = () => {
+    if (!newPropertyName.value.trim()) {
+        return;
+    }
+    propertyValueInput.value?.focus();
+};
+
+const handlePropertyValueEnter = () => {
+    addProperty();
+};
 
 const removeProperty = async (attr: ImageProperty) => {
     if (propertyActionPending.value) {
@@ -381,10 +395,12 @@ loadImg();
                                         </div>
 
                                         <div class="property-form compact-forms">
-                                            <el-input v-model="newPropertyName" placeholder="属性名" clearable
-                                                :disabled="propertyActionPending" size="small" />
-                                            <el-input v-model="newPropertyValue" placeholder="属性值" clearable
-                                                :disabled="propertyActionPending" size="small" />
+                                            <el-input ref="propertyNameInput" v-model="newPropertyName" placeholder="属性名" clearable
+                                                :disabled="propertyActionPending" size="small"
+                                                @keyup.enter.prevent="focusPropertyValueInput" />
+                                            <el-input ref="propertyValueInput" v-model="newPropertyValue" placeholder="属性值" clearable
+                                                :disabled="propertyActionPending" size="small"
+                                                @keyup.enter.prevent="handlePropertyValueEnter" />
                                             <el-button type="primary" :loading="propertyActionPending" @click="addProperty" size="small">
                                                 添加
                                             </el-button>
