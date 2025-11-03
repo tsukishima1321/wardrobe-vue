@@ -255,11 +255,8 @@ const resetZoom = () => {
     zoomLevel.value = 1;
 }
 
-fetchDataAutoRetry('/api/types/', {}, 'GET').then(async (res) => {
-    await loadImg();
-}).catch(() => {
-    router.push('/login');
-});
+loadImg();
+
 </script>
 
 <template>
