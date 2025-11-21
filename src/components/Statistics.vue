@@ -32,7 +32,8 @@ const updateStat = async () => {
     overallLastYear.value = overall.lastYearAmount;
     overallLastMonth.value = overall.lastMonthAmount;
 
-    types = types.sort((a, b) => b.lastMonthAmount - a.lastMonthAmount);
+    types = types.sort((a, b) => (b.lastMonthAmount - a.lastMonthAmount) * 1000 + (b.lastYearAmount - a.lastYearAmount) * 10 + (b.totalAmount - a.totalAmount));
+
 
     typesStatistics.value = types;
 }
