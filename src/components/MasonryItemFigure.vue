@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 const { src, figcaption, oriSrc, checked } = defineProps({
     src: {
         type: String,
@@ -21,6 +21,10 @@ const { src, figcaption, oriSrc, checked } = defineProps({
 
 const selected = ref<boolean>(checked);
 
+watch(() => checked, (newVal) => {
+    selected.value = newVal;
+});
+
 const emits = defineEmits<{
     clicked: [src: string],
     selected: [src: string],
@@ -32,7 +36,7 @@ const clicked = () => {
 }
 
 const changed = () => {
-    if (selected) {
+    if (selected.value) {
         emits('selected', oriSrc);
     } else {
         emits('unselected', oriSrc);
