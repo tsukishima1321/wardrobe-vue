@@ -31,6 +31,8 @@ export interface SearchParams {
   page: number;
   keywords?: Array<string>;
   properties?: Array<PropItem>;
+  excludedKeywords?: Array<string>;
+  excludedProperties?: Array<PropItem>;
 }
 
 const searchword = ref(props.searchword);
@@ -52,7 +54,9 @@ const dateTo = ref('');
 const searchByTitle = ref(true);
 const searchByContent = ref(false);
 const properties = ref<Array<PropItem>>([]);
+const excludedProperties = ref<Array<PropItem>>([]);
 const keywords = ref<Array<string>>([]);
+const excludedKeywords = ref<Array<string>>([]);
 const propertyName = ref('');
 const propertyValue = ref('');
 
@@ -72,30 +76,34 @@ function sendValue() {
     searchByContent: searchByContent.value,
     page: 0,
     keywords: keywords.value,
-    properties: properties.value
+    properties: properties.value,
+    excludedKeywords: excludedKeywords.value,
+    excludedProperties: excludedProperties.value
   }
   emits('updateValue', searchParams)
 }
 
-function addProperty() {
+function addProperty(isIncluded: boolean = true) {
   const name = (propertyName.value || '').toString().trim();
   const value = (propertyValue.value || '').toString().trim();
   if (!name || !value) {
     return;
   }
-  const idx = properties.value.findIndex(p => p.name === name);
+  const targetList = isIncluded ? properties.value : excludedProperties.value;
+  const idx = targetList.findIndex(p => p.name === name);
   if (idx >= 0) {
     // replace existing value
-    properties.value[idx].value = value;
+    targetList[idx].value = value;
   } else {
-    properties.value.push({ name, value });
+    targetList.push({ name, value });
   }
   propertyName.value = '';
   propertyValue.value = '';
 }
 
-function removeProperty(index: number) {
-  properties.value.splice(index, 1);
+function removeProperty(index: number, isIncluded: boolean = true) {
+  const targetList = isIncluded ? properties.value : excludedProperties.value;
+  targetList.splice(index, 1);
 }
 
 </script>
@@ -158,29 +166,42 @@ function removeProperty(index: number) {
         <ElCollapseItem title="关键词与属性" name="filters">
           <div class="filters-section">
             <!-- 关键词：可选提示或手动输入 -->
-            <div class="keywords-row" style="display:flex; align-items:center; gap:10px;">
-              <span class="sort-label">关键词:</span>
-              <ElSelect v-model="keywords" multiple filterable allow-create placeholder="选择或输入关键词"
-                style="flex: 3; min-width: 200px;">
+            <div class="filter-row">
+              <span class="sort-label label-fixed">包含:</span>
+              <ElSelect v-model="keywords" multiple filterable allow-create placeholder="包含关键词"
+                class="flex-input">
+                <ElOption v-for="k in props.keywordsHint" :key="k" :label="k" :value="k" />
+              </ElSelect>
+            </div>
+            <div class="filter-row mt-8">
+              <span class="sort-label label-fixed">排除:</span>
+              <ElSelect v-model="excludedKeywords" multiple filterable allow-create placeholder="排除关键词"
+                class="flex-input">
                 <ElOption v-for="k in props.keywordsHint" :key="k" :label="k" :value="k" />
               </ElSelect>
             </div>
 
             <!-- 属性：选择属性名（可新建） + 输入属性值 -->
-            <div class="properties-row" style="display:flex; align-items:center; gap:10px; margin-top:12px;">
-              <span class="sort-label">属性:</span>
-              <ElSelect v-model="propertyName" filterable allow-create placeholder="选择或输入属性名"
-                style="width:220px;">
+            <div class="filter-row mt-12 wrap-row">
+              <span class="sort-label label-fixed">属性:</span>
+              <ElSelect v-model="propertyName" filterable allow-create placeholder="属性名"
+                class="prop-input">
                 <ElOption v-for="p in props.propertiesHint" :key="p" :label="p" :value="p" />
               </ElSelect>
-              <ElInput v-model="propertyValue" placeholder="属性值" style="width:220px;" />
-              <ElButton type="primary" @click="addProperty">添加属性</ElButton>
+              <ElInput v-model="propertyValue" placeholder="属性值" class="prop-input" />
+              <div class="button-group">
+                <ElButton type="primary" plain @click="addProperty(true)">包含</ElButton>
+                <ElButton type="danger" plain @click="addProperty(false)">排除</ElButton>
+              </div>
             </div>
 
             <!-- 已添加的属性展示 -->
             <div class="properties-list" style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-              <ElTag v-for="(prop, idx) in properties" :key="prop.name + '-' + idx" closable @close="removeProperty(idx)">
+              <ElTag v-for="(prop, idx) in properties" :key="'inc-' + prop.name + '-' + idx" closable @close="removeProperty(idx, true)">
                 {{ prop.name }}: {{ prop.value }}
+              </ElTag>
+              <ElTag v-for="(prop, idx) in excludedProperties" :key="'exc-' + prop.name + '-' + idx" type="danger" closable @close="removeProperty(idx, false)">
+                排除 {{ prop.name }}: {{ prop.value }}
               </ElTag>
             </div>
           </div>
@@ -228,6 +249,43 @@ function removeProperty(index: number) {
   padding: 10px 0;
 }
 
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mt-8 {
+  margin-top: 8px;
+}
+
+.mt-12 {
+  margin-top: 12px;
+}
+
+.label-fixed {
+  width: 60px;
+  flex-shrink: 0;
+}
+
+.flex-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.prop-input {
+  width: 180px;
+}
+
+.wrap-row {
+  flex-wrap: wrap;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .search-card {
@@ -247,6 +305,16 @@ function removeProperty(index: number) {
 
   .search-row:first-child {
     flex-direction: row;
+  }
+
+  .prop-input {
+    width: auto;
+    flex: 1;
+    min-width: 120px;
+  }
+  
+  .button-group {
+    margin-left: auto;
   }
 }
 </style>

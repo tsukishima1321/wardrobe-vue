@@ -326,7 +326,7 @@ loadImg();
 
                 <!-- 右侧：信息编辑区域 -->
                 <el-col :span="10">
-                    <el-space direction="vertical" fill style="width: 100%;" :size="20">
+                    <el-space fill style="width: 100%;" :size="20">
                         <!-- 图片基本信息 -->
                         <el-card class="info-card" shadow="hover">
                             <template #header>
@@ -347,7 +347,7 @@ loadImg();
                                 </div>
                             </template>
 
-                            <el-form label-width="80px" size="default">
+                            <el-form label-width="60px" size="default">
                                 <!-- 图片标题 -->
                                 <el-form-item label="标题">
                                     <el-text v-if="!enableEdit" size="large">{{ imgTitle }}</el-text>
@@ -600,10 +600,6 @@ loadImg();
     margin-top: 12px;
 }
 
-.keyword-form :deep(.el-input) {
-    flex: 1;
-}
-
 .property-table {
     margin-bottom: 12px;
 }
@@ -612,10 +608,6 @@ loadImg();
     display: flex;
     gap: 10px;
     margin-top: 12px;
-}
-
-.property-form :deep(.el-input) {
-    flex: 1;
 }
 
 /* Compact combined keywords & properties section */
@@ -667,7 +659,7 @@ loadImg();
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
+@media (max-width: 1000px) or (orientation: portrait) {
     .el-main {
         overflow-x: hidden;
         height: auto;
@@ -696,6 +688,10 @@ loadImg();
         min-height: auto;
     }
 
+    .compact-row {
+        flex-direction: column;
+    }
+
     .image-container {
         padding: 10px;
         height: 60vh;
@@ -714,10 +710,7 @@ loadImg();
         flex-wrap: wrap;
         justify-content: center;
     }
-}
 
-/* 竖屏设备优化 */
-@media (max-width: 768px) and (orientation: portrait) {
     .detail-container {
         min-height: 100vh;
         padding: 15px;

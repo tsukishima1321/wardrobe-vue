@@ -77,6 +77,8 @@ const updateSearchPara = (params: SearchParams) => {
     searchParams.sortOrder = order;
     searchParams.keywords = params.keywords;
     searchParams.properties = params.properties;
+    searchParams.excludedKeywords = params.excludedKeywords;
+    searchParams.excludedProperties = params.excludedProperties;
     updateSearch();
 }
 
@@ -107,7 +109,9 @@ const updateSearch = debounce(async () => {
         order: searchParams.sortOrder,
         pageSize: pageSize.value,
         keywords: searchParams.keywords,
-        properties: searchParams.properties
+        properties: searchParams.properties,
+        excludedKeywords: searchParams.excludedKeywords,
+        excludedProperties: searchParams.excludedProperties
     };
     let data = await fetchDataAutoRetry('/api/search/', para) as SearchResponse;
     blobImgList.value = data.hrefList.map(item => ({
