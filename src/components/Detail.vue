@@ -368,14 +368,14 @@ loadImg();
                                     <div class="compact-column">
                                         <div class="section-title">关键词</div>
 
-                                        <div v-if="keywords.length" class="keyword-list compact-tags">
+                                        <div v-if="keywords.length" class="compact-tags">
                                             <el-tag v-for="keyword in keywords" :key="keyword" type="info" closable
                                                 @close="removeKeyword(keyword)">
                                                 {{ keyword }}
                                             </el-tag>
                                         </div>
 
-                                        <div class="keyword-form compact-forms">
+                                        <div class="compact-forms">
                                             <el-input v-model="newKeyword" placeholder="输入新关键词" clearable
                                                 :disabled="keywordActionPending" @keyup.enter="addKeyword" size="small" />
                                             <el-button type="primary" :loading="keywordActionPending" @click="addKeyword" size="small">
@@ -387,14 +387,14 @@ loadImg();
                                     <div class="compact-column">
                                         <div class="section-title">属性</div>
 
-                                        <div v-if="propertys.length" class="keyword-list compact-tags">
+                                        <div v-if="propertys.length" class="compact-tags">
                                             <el-tag v-for="prop in propertys" :key="prop.name + prop.value" type="success" closable
                                                 @close="removeProperty(prop)">
                                                 {{ prop.name }}：{{ prop.value }}
                                             </el-tag>
                                         </div>
 
-                                        <div class="property-form compact-forms">
+                                        <div class="compact-forms">
                                             <el-input ref="propertyNameInput" v-model="newPropertyName" placeholder="属性名" clearable
                                                 :disabled="propertyActionPending" size="small"
                                                 @keyup.enter.prevent="focusPropertyValueInput" />
@@ -470,15 +470,6 @@ loadImg();
 
 .image-card {
     height: 85vh;
-}
-
-.card-header {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 18px;
-    font-weight: 600;
-    color: #333;
 }
 
 .card-header-with-zoom {
@@ -587,59 +578,43 @@ loadImg();
     margin-bottom: 8px;
 }
 
-.keyword-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.keyword-form {
-    display: flex;
-    gap: 10px;
-    margin-top: 12px;
-}
-
-.property-table {
-    margin-bottom: 12px;
-}
-
-.property-form {
-    display: flex;
-    gap: 10px;
-    margin-top: 12px;
-}
-
 /* Compact combined keywords & properties section */
 .compact-section {
     padding: 8px 0 4px 0;
 }
+
 .compact-row {
     display: flex;
     gap: 20px;
     justify-content: space-between;
     align-items: flex-start;
 }
+
 .compact-column {
     flex: 1;
     min-width: 180px;
 }
+
 .section-title {
     font-weight: 600;
     color: #333;
     margin-bottom: 6px;
 }
+
 .compact-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     margin-bottom: 8px;
 }
+
 .compact-forms {
     display: flex;
     gap: 8px;
     align-items: center;
+    margin-top: 12px;
 }
+
 .compact-forms :deep(.el-input) {
     flex: 1;
 }
@@ -660,19 +635,23 @@ loadImg();
 
 /* 响应式设计 */
 @media (max-width: 1000px) or (orientation: portrait) {
-    .el-main {
-        overflow-x: hidden;
+    .detail-container {
+        min-height: 100vh;
         height: auto;
+        padding: 15px;
+        overflow-x: hidden;
     }
 
-    .detail-container {
-        overflow-x: hidden;
+    .el-main {
         height: auto;
-        padding: 10px;
+        padding: 0;
+        overflow-x: hidden;
     }
 
     .el-row {
+        height: auto !important;
         flex-direction: column;
+        gap: 20px;
     }
 
     .el-col {
@@ -688,17 +667,13 @@ loadImg();
         min-height: auto;
     }
 
-    .compact-row {
-        flex-direction: column;
+    .image-card {
+        order: 1;
     }
 
-    .image-container {
-        padding: 10px;
-        height: 60vh;
-    }
-
-    .image-scroll-wrapper {
-        height: 100%;
+    .info-card,
+    .text-card {
+        order: 2;
     }
 
     .card-header-with-zoom {
@@ -711,28 +686,17 @@ loadImg();
         justify-content: center;
     }
 
-    .detail-container {
-        min-height: 100vh;
-        padding: 15px;
+    .image-container {
+        padding: 10px;
+        height: 60vh;
     }
 
-    .el-main {
-        padding: 0;
+    .image-scroll-wrapper {
+        height: 100%;
     }
 
-    .el-row {
-        height: auto !important;
+    .compact-row {
         flex-direction: column;
-        gap: 20px;
-    }
-
-    .image-card {
-        order: 1;
-    }
-
-    .info-card,
-    .text-card {
-        order: 2;
     }
 
     .el-form {

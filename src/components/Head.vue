@@ -23,7 +23,7 @@ import { Management, Picture, UploadFilled,ChatSquare } from '@element-plus/icon
 </template>
 
 <style scoped>
-.head {
+.headermenu {
     width: 100%;
     margin: 0;
 }

@@ -54,14 +54,6 @@ const handleCurrentChange = (val: number) => {
 </style>
 
 <style scoped>
-.demo-pagination-block+.demo-pagination-block {
-    margin-top: 10px;
-}
-
-.demo-pagination-block .demonstration {
-    margin-bottom: 16px;
-}
-
 @media (min-width:600px) {
     .pagination-block {
         z-index: 1000;

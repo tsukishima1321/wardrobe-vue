@@ -39,10 +39,6 @@ function upload() {
     justify-content: center;
 }
 
-.uploadButton {
-    margin-right: 10px;
-}
-
 .el-input {
     width: 80%;
     padding: 5px;

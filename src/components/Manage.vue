@@ -206,14 +206,4 @@ const handleRowDoubleClidked = (row: { src: string, status: string }) => {
 .el-table {
     margin-bottom: 20px;
 }
-
-.dialog-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-}
-
-.el-form-item {
-    margin-bottom: 20px;
-}
 </style>

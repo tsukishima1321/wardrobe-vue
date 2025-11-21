@@ -84,12 +84,6 @@ const changeMode = (mode: boolean) => {
     }
 }
 
-.dialog-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-}
-
 @media (max-width: 768px) {
     .search-toolbar {
         width: 90vw;

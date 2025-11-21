@@ -79,10 +79,4 @@ figure img {
     margin-bottom: 0px;
     border-radius: 4px 4px 0 0;
 }
-
-@media (max-width: 600px) {
-    figure img {
-        width: 100%;
-    }
-}
 </style>

@@ -64,24 +64,17 @@ const search = (keyword: string) => {
     padding: 10px;
 }
 
-@media (max-width: 600px) {
-    .body {
-        display: flex;
-        height: auto;
-        flex-direction: column;
-    }
+#left-column {
+    display: flex;
+    flex-direction: column;
+    width: 70vw;
 }
 
 #right-column {
     display: inline-block;
     vertical-align: top;
     margin-left: 5px;
-}
-
-#left-column {
-    display: column;
-    flex-direction: column;
-    width: 70vw;
+    width: 25vw;
 }
 
 .random-images {
@@ -90,17 +83,13 @@ const search = (keyword: string) => {
     padding-bottom: 10px;
 }
 
-#right-column {
-    width: 25vw;
-}
-
-.random-image,
-#search,
-#statistics {
-    margin-bottom: 20px;
-}
-
 @media (max-width: 600px) {
+    .body {
+        display: flex;
+        height: auto;
+        flex-direction: column;
+    }
+
     .random-images {
         height: auto;
         flex-direction: column;
@@ -114,11 +103,6 @@ const search = (keyword: string) => {
     #right-column {
         margin-left: 0;
         width: 100%;
-    }
-
-    .image-viewer {
-        width: auto;
-        height: 50vh;
     }
 }
 </style>
