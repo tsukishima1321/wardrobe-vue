@@ -108,7 +108,7 @@ const loadSavedSearch = async (id: number) => {
 
 const postSavedSearch = async (name: string, params: SearchParams) => {
     console.log('Save current search as', name, params);
-    const response = await fetchDataAutoRetry('/api/savedsearch/create/', {name: name, searchparams: params }) as {id: number};
+    const response = await fetchDataAutoRetry('/api/savedsearch/create/', { name: name, searchparams: params }) as { id: number };
     return response.id;
 }
 

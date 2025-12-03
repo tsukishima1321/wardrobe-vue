@@ -125,7 +125,7 @@ const updateSearchHint = debounce(async () => {
 
 const updateSearch = debounce(async () => {
     isLoading.value = true;
-    
+
     let order = 'desc';
     if (searchParams.value.sortOrder === "升序") {
         order = 'asc';
@@ -151,7 +151,7 @@ const updateSearch = debounce(async () => {
         const data = await fetchDataAutoRetry('/api/search/', para) as SearchResponse;
         totalPage.value = data.totalPage;
         totalItems.value = data.total;
-        
+
         blobImgList.value = data.hrefList.map(item => ({
             blobSrc: '',
             oriSrc: item.src,
@@ -287,80 +287,42 @@ onMounted(() => {
 <template>
     <div class="search-page">
         <aside class="sidebar hidden-xs-only">
-            <SearchFilterPanel 
-                v-model:modelValue="searchParams"
-                :keywordsHint="keywordsHint"
-                :propertiesHint="propertiesHint"
-                @search="updateSearch"
-            />
+            <SearchFilterPanel v-model:modelValue="searchParams" :keywordsHint="keywordsHint"
+                :propertiesHint="propertiesHint" @search="updateSearch" />
         </aside>
 
-        <el-drawer
-            v-model="showMobileFilter"
-            title="Filters"
-            direction="ltr"
-            size="80%"
-            class="mobile-filter-drawer"
-        >
-            <SearchFilterPanel 
-                v-model:modelValue="searchParams"
-                :keywordsHint="keywordsHint"
-                :propertiesHint="propertiesHint"
-                @search="updateSearch"
-            />
+        <el-drawer v-model="showMobileFilter" title="Filters" direction="ltr" size="80%" class="mobile-filter-drawer">
+            <SearchFilterPanel v-model:modelValue="searchParams" :keywordsHint="keywordsHint"
+                :propertiesHint="propertiesHint" @search="updateSearch" />
         </el-drawer>
 
         <main class="main-content">
-            <SearchResultsHeader 
-                :searchword="searchParams.searchword"
-                :sortBy="searchParams.sortBy"
-                :sortOrder="searchParams.sortOrder"
-                :total="totalItems" 
-                :hasSelection="hasSelection"
-                :isAllSelected="isAllSelected"
-                v-model:isPictureMode="isPictureMode"
+            <SearchResultsHeader :searchword="searchParams.searchword" :sortBy="searchParams.sortBy"
+                :sortOrder="searchParams.sortOrder" :total="totalItems" :hasSelection="hasSelection"
+                :isAllSelected="isAllSelected" v-model:isPictureMode="isPictureMode"
                 @update:searchword="val => searchParams.searchword = val"
                 @update:sortBy="val => searchParams.sortBy = val"
-                @update:sortOrder="val => searchParams.sortOrder = val"
-                @search="updateSearch"
-                @delete="handleDelete"
-                @download="handleDownload"
-                @selectAll="selectAll"
-                @selectNone="selectNone"
-                @openMobileFilter="showMobileFilter = true"
-            />
-            
+                @update:sortOrder="val => searchParams.sortOrder = val" @search="updateSearch" @delete="handleDelete"
+                @download="handleDownload" @selectAll="selectAll" @selectNone="selectNone"
+                @openMobileFilter="showMobileFilter = true" />
+
             <div class="results-area" v-loading="isLoading">
                 <div v-if="isPictureMode" class="masonry-container-wrapper">
                     <div ref="masonryContainer" class="masonry">
-                        <MasonryItemFigure 
-                            v-for="blobImg in blobImgList" 
-                            :key="blobImg.oriSrc" 
-                            :src="blobImg.blobSrc"
-                            :oriSrc="blobImg.oriSrc" 
-                            :figcaption="blobImg.title" 
-                            :checked="blobImg.checked"
-                            @clicked="imgClicked" 
-                            @selected="imgSelected"
-                            @unselected="imgUnSelected" 
-                        />
+                        <MasonryItemFigure v-for="blobImg in blobImgList" :key="blobImg.oriSrc" :src="blobImg.blobSrc"
+                            :oriSrc="blobImg.oriSrc" :figcaption="blobImg.title" :checked="blobImg.checked"
+                            @clicked="imgClicked" @selected="imgSelected" @unselected="imgUnSelected" />
                     </div>
                 </div>
-                
+
                 <div v-else class="table-container">
-                    <el-table 
-                        :data="blobImgList" 
-                        stripe 
-                        style="width: 100%" 
-                        @selection-change="(selection: BlobImgItem[]) => {
-                            blobImgList.forEach(item => item.checked = false);
-                            selection.forEach(sel => {
-                                const item = blobImgList.find(i => i.oriSrc === sel.oriSrc);
-                                if (item) item.checked = true;
-                            });
-                        }"
-                        @row-dblclick="handleRowDoubleClick"
-                    >
+                    <el-table :data="blobImgList" stripe style="width: 100%" @selection-change="(selection: BlobImgItem[]) => {
+                        blobImgList.forEach(item => item.checked = false);
+                        selection.forEach(sel => {
+                            const item = blobImgList.find(i => i.oriSrc === sel.oriSrc);
+                            if (item) item.checked = true;
+                        });
+                    }" @row-dblclick="handleRowDoubleClick">
                         <el-table-column type="selection" width="55" />
                         <el-table-column prop="date" label="日期" width="180" />
                         <el-table-column prop="title" label="标题" />
@@ -368,10 +330,7 @@ onMounted(() => {
                 </div>
             </div>
 
-            <Pagination 
-                :maxPage="totalPage" 
-                @pageChanged="pageChanged" 
-            />
+            <Pagination :maxPage="totalPage" @pageChanged="pageChanged" />
         </main>
     </div>
 </template>
@@ -379,7 +338,7 @@ onMounted(() => {
 <style scoped>
 .search-page {
     display: flex;
-    min-height: 100vh;
+    height: 100%;
     background-color: #f0f2f5;
 }
 
@@ -388,7 +347,6 @@ onMounted(() => {
     flex-shrink: 0;
     background-color: #fff;
     border-right: 1px solid #e0e0e0;
-    height: 100vh;
     position: sticky;
     top: 0;
     overflow-y: auto;
@@ -402,7 +360,6 @@ onMounted(() => {
     flex-direction: column;
     padding: 20px;
     overflow-x: hidden;
-    height: 100vh;
     overflow-y: auto;
 }
 
@@ -425,7 +382,7 @@ onMounted(() => {
     .sidebar {
         display: none;
     }
-    
+
     .main-content {
         padding: 10px;
     }

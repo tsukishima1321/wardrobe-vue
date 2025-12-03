@@ -20,10 +20,10 @@ const emit = defineEmits<{
     (e: 'update:isPictureMode', val: boolean): void;
     (e: 'search'): void;
     (e: 'delete'): void;
-  (e: 'download'): void;
-  (e: 'selectAll'): void;
-  (e: 'selectNone'): void;
-  (e: 'openMobileFilter'): void;
+    (e: 'download'): void;
+    (e: 'selectAll'): void;
+    (e: 'selectNone'): void;
+    (e: 'openMobileFilter'): void;
 }>();
 
 const localSearchword = ref(props.searchword);
