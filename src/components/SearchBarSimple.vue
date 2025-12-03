@@ -10,16 +10,11 @@ function sendValue() {
     emits('updateValue', keyword.value)
 }
 
-function upload() {
-    router.push('/upload');
-}
-
 </script>
 
 <template>
     <el-card class="search">
         <el-row>
-            <el-button id="uploadButton" @click="upload" type="primary">上传图片</el-button>
             <el-input id="searchText" placeholder="输入关键字" @change="sendValue" v-model="keyword" />
             <el-button id="searchButton" @click="sendValue" type="primary">搜索</el-button>
         </el-row>
@@ -29,8 +24,8 @@ function upload() {
 
 <style scoped>
 .search {
-    margin-right: 5px;
-    margin-bottom: 20px;
+    padding: 10px;
+    width: 100%;
 }
 
 .el-row {

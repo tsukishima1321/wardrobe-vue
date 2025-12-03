@@ -1,7 +1,7 @@
 <script setup lang="ts">
 
 import favicon from '@/assets/icons/favicon.ico';
-import { Management, Picture, UploadFilled,ChatSquare } from '@element-plus/icons-vue';
+import { Management, Picture, UploadFilled, Notebook } from '@element-plus/icons-vue';
 
 </script>
 
@@ -11,7 +11,7 @@ import { Management, Picture, UploadFilled,ChatSquare } from '@element-plus/icon
             <img style="width: 48px" :src="favicon" alt="静寂的壁橱" />
         </el-menu-item>
         <el-menu-item index="/diary"><el-icon>
-                <ChatSquare />
+                <Notebook />
             </el-icon>日记</el-menu-item>
         <el-menu-item index="/search"><el-icon>
                 <Picture />
