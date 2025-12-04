@@ -126,11 +126,6 @@ const updateSearchHint = debounce(async () => {
 const updateSearch = debounce(async () => {
     isLoading.value = true;
 
-    let order = 'desc';
-    if (searchParams.value.sortOrder === "升序") {
-        order = 'asc';
-    }
-
     const para = {
         searchKey: searchParams.value.searchword,
         page: searchParams.value.page,
@@ -139,7 +134,7 @@ const updateSearch = debounce(async () => {
         byName: searchParams.value.searchByTitle,
         byFullText: searchParams.value.searchByContent,
         orderBy: searchParams.value.sortBy,
-        order: order,
+        order: searchParams.value.sortOrder,
         pageSize: pageSize.value,
         keywords: searchParams.value.keywords,
         properties: searchParams.value.properties,
