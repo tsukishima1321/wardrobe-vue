@@ -39,10 +39,4 @@ function sendValue() {
     padding: 5px;
     margin-right: 5px;
 }
-
-@media (max-width: 600px) {
-    .el-input {
-        width: 40%;
-    }
-}
 </style>

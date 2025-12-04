@@ -3,13 +3,14 @@ import { useRouter } from "vue-router";
 import { ref } from 'vue';
 import { ElMessage, ElLoading, ElInput } from 'element-plus';
 import { fetchDataAutoRetry, GetBlobImgSrc } from '../token.ts';
-import { ZoomIn, ZoomOut, Refresh, Picture, Edit, Check } from '@element-plus/icons-vue';
+import { ZoomIn, ZoomOut, Refresh, Picture, Edit, Check, Plus, Delete } from '@element-plus/icons-vue';
 
 const router = useRouter();
 const imgSrc = ref(router.currentRoute.value.params.src);
 const blobSrc = ref('');
 const enableEdit = ref(false);
 const enableEditText = ref(false);
+const imgLoading = ref(true);
 
 interface ImageProperty {
     name: string;
@@ -45,6 +46,7 @@ interface imgData {
 }
 
 const loadImg = async () => {
+    imgLoading.value = true;
     try {
         const res = await fetchDataAutoRetry(`/api/image/get/`, { src: imgSrc.value }, 'POST');
         const r = res as imgData;
@@ -62,7 +64,10 @@ const loadImg = async () => {
     try {
         blobSrc.value = await GetBlobImgSrc("/imagebed/" + imgSrc.value);
     } catch {
-        router.push('/login');
+        ElMessage.error('图片加载失败');
+        // router.push('/login');
+    } finally {
+        imgLoading.value = false;
     }
 }
 
@@ -94,10 +99,10 @@ const submitEdit = async () => {
             date: imgDate.value,
         };
 
-    await fetchDataAutoRetry(`/api/image/set/`, data, 'POST');
-    enableEdit.value = false;
-    ElMessage.success('图片信息保存成功！');
-    await loadImg();
+        await fetchDataAutoRetry(`/api/image/set/`, data, 'POST');
+        enableEdit.value = false;
+        ElMessage.success('图片信息保存成功！');
+        await loadImg();
     } catch (error) {
         console.error('Save failed:', error);
         ElMessage.error('保存失败，请重试');
@@ -129,10 +134,10 @@ const submitEditText = async () => {
             text: imgText.value
         };
 
-    await fetchDataAutoRetry(`/api/text/set/`, data, 'POST');
-    enableEditText.value = false;
-    ElMessage.success('图片文本保存成功！');
-    await loadImg();
+        await fetchDataAutoRetry(`/api/text/set/`, data, 'POST');
+        enableEditText.value = false;
+        ElMessage.success('图片文本保存成功！');
+        await loadImg();
     } catch (error) {
         console.error('Save text failed:', error);
         ElMessage.error('保存失败，请重试');
@@ -274,437 +279,375 @@ loadImg();
 </script>
 
 <template>
-    <el-container class="detail-container">
-        <el-main>
-            <el-row :gutter="20" style="height: 100%;">
-                <!-- 左侧：图片展示区域 -->
-                <el-col :span="14">
-                    <el-card class="image-card" shadow="hover"> <template #header>
-                            <div class="card-header-with-zoom">
-                                <span>图片详情</span>
-                                <div class="zoom-controls">
-                                    <el-button-group size="small">
-                                        <el-button @click="zoomOut" :disabled="zoomLevel <= minZoom">
-                                            <el-icon>
-                                                <ZoomOut />
-                                            </el-icon>
-                                        </el-button>
-                                        <el-button @click="resetZoom" :disabled="zoomLevel === 1">
-                                            <el-icon>
-                                                <Refresh />
-                                            </el-icon>
-                                        </el-button>
-                                        <el-button @click="zoomIn" :disabled="zoomLevel >= maxZoom">
-                                            <el-icon>
-                                                <ZoomIn />
-                                            </el-icon>
-                                        </el-button>
-                                    </el-button-group>
-                                    <el-text size="small" class="zoom-level">{{ Math.round(zoomLevel * 100)
-                                        }}%</el-text>
-                                </div>
+    <div class="layout-container">
+        <!-- Left: Image Viewer -->
+        <div class="image-viewer">
+            <div class="image-stage">
+                <div class="image-content" :style="{ width: `${zoomLevel * 100}%` }">
+                    <el-skeleton v-if="imgLoading" animated>
+                        <template #template>
+                            <el-skeleton-item variant="image" style="width: 100%; height: 80vh; border-radius: 8px;" />
+                        </template>
+                    </el-skeleton>
+                    <el-image v-show="!imgLoading" :src="blobSrc" :preview-src-list="[blobSrc]" class="main-image">
+                        <template #error>
+                            <div class="image-error">
+                                <el-icon>
+                                    <Picture />
+                                </el-icon>
+                                <span>无法加载图片</span>
                             </div>
                         </template>
-                        <div class="image-container">
-                            <div class="image-scroll-wrapper">
-                                <el-image :src="blobSrc" :preview-src-list="[blobSrc]" fit="cover"
-                                    class="scrollable-image"
-                                    :style="{ transform: `scale(${zoomLevel})`, transformOrigin: 'center top' }">
-                                    <template #error>
-                                        <div class="image-slot">
-                                            <el-icon>
-                                                <Picture />
-                                            </el-icon>
-                                            <div>图片加载失败</div>
-                                        </div>
-                                    </template>
-                                </el-image>
-                            </div>
+                    </el-image>
+                </div>
+            </div>
+
+            <!-- Floating Zoom Controls -->
+            <div class="zoom-bar">
+                <el-button-group>
+                    <el-button :icon="ZoomOut" circle @click="zoomOut" :disabled="zoomLevel <= minZoom" />
+                    <el-button @click="resetZoom" :disabled="zoomLevel === 1">{{ Math.round(zoomLevel * 100)
+                    }}%</el-button>
+                    <el-button :icon="ZoomIn" circle @click="zoomIn" :disabled="zoomLevel >= maxZoom" />
+                </el-button-group>
+            </div>
+        </div>
+
+        <!-- Right: Details Panel -->
+        <div class="details-panel">
+            <div class="panel-content">
+                <!-- Header / Basic Info -->
+                <div class="section basic-info">
+                    <div class="section-header">
+                        <h2 v-if="!enableEdit" class="title-display">{{ imgTitle || '无标题' }}</h2>
+                        <el-input v-else v-model="imgTitle" placeholder="图片标题" class="title-input" size="large" />
+
+                        <div class="actions">
+                            <el-button v-if="!enableEdit" link type="primary" @click="startEdit">
+                                <el-icon>
+                                    <Edit />
+                                </el-icon> 编辑
+                            </el-button>
+                            <el-button v-else type="primary" link @click="submitEdit">
+                                <el-icon>
+                                    <Check />
+                                </el-icon> 保存
+                            </el-button>
                         </div>
-                    </el-card>
-                </el-col>
+                    </div>
 
-                <!-- 右侧：信息编辑区域 -->
-                <el-col :span="10">
-                    <el-space fill style="width: 100%;" :size="20">
-                        <!-- 图片基本信息 -->
-                        <el-card class="info-card" shadow="hover">
-                            <template #header>
-                                <div class="card-header-with-action">
-                                    <span>基本信息</span> <el-button v-if="!enableEdit" type="primary" size="small"
-                                        @click="startEdit">
+                    <div class="meta-row">
+                        <span class="label">日期</span>
+                        <span v-if="!enableEdit" class="value">{{ imgDate || '-' }}</span>
+                        <el-date-picker v-else v-model="imgDate" type="date" placeholder="选择日期" format="YYYY-MM-DD"
+                            value-format="YYYY-MM-DD" size="small" style="width: 140px;" />
+                    </div>
+                </div>
+
+                <el-divider />
+
+                <!-- Keywords -->
+                <div class="section keywords-section">
+                    <div class="section-title">关键词</div>
+                    <div class="tags-wrapper">
+                        <el-tag v-for="keyword in keywords" :key="keyword" closable type="info" effect="plain"
+                            @close="removeKeyword(keyword)" class="custom-tag" size="small">
+                            {{ keyword }}
+                        </el-tag>
+
+                        <div class="add-tag-wrapper">
+                            <el-input v-model="newKeyword" placeholder="新关键词" size="small" class="new-tag-input"
+                                @keyup.enter="addKeyword" :disabled="keywordActionPending">
+                                <template #append>
+                                    <el-button @click="addKeyword" :loading="keywordActionPending" size="small">
                                         <el-icon>
-                                            <Edit />
+                                            <Plus />
                                         </el-icon>
-                                        编辑
                                     </el-button>
-                                    <el-button v-else type="success" size="small" @click="submitEdit">
-                                        <el-icon>
-                                            <Check />
-                                        </el-icon>
-                                        保存
-                                    </el-button>
-                                </div>
-                            </template>
+                                </template>
+                            </el-input>
+                        </div>
+                    </div>
+                </div>
 
-                            <el-form label-width="60px" size="default">
-                                <!-- 图片标题 -->
-                                <el-form-item label="标题">
-                                    <el-text v-if="!enableEdit" size="large">{{ imgTitle }}</el-text>
-                                    <el-input v-else v-model="imgTitle" placeholder="请输入图片标题" clearable />
-                                </el-form-item>
+                <el-divider />
 
-                                <!-- 图片日期 -->
-                                <el-form-item label="日期">
-                                    <el-date-picker v-model="imgDate" type="date" placeholder="选择日期"
-                                        style="width: 100%;" format="YYYY-MM-DD" value-format="YYYY-MM-DD"
-                                        :disabled="!enableEdit" />
-                                </el-form-item>
-                            </el-form>
+                <!-- Properties -->
+                <div class="section properties-section">
+                    <div class="section-title">属性</div>
+                    <div class="props-list">
+                        <div v-for="prop in propertys" :key="prop.name + prop.value" class="prop-item">
+                            <span class="prop-name">{{ prop.name }}</span>
+                            <span class="prop-value">{{ prop.value }}</span>
+                            <el-button link type="danger" size="small" @click="removeProperty(prop)"
+                                class="delete-prop">
+                                <el-icon>
+                                    <Delete />
+                                </el-icon>
+                            </el-button>
+                        </div>
+                    </div>
 
-                            <!-- Compact combined Keywords & Properties inside Basic Info -->
-                            <div class="compact-section">
-                                <div class="compact-row">
-                                    <div class="compact-column">
-                                        <div class="section-title">关键词</div>
+                    <div class="add-prop-row">
+                        <el-input ref="propertyNameInput" v-model="newPropertyName" placeholder="属性名" size="small"
+                            style="width: 35%" @keyup.enter.prevent="focusPropertyValueInput"
+                            :disabled="propertyActionPending" />
+                        <el-input ref="propertyValueInput" v-model="newPropertyValue" placeholder="属性值" size="small"
+                            style="flex: 1" @keyup.enter.prevent="handlePropertyValueEnter"
+                            :disabled="propertyActionPending" />
+                        <el-button size="small" @click="addProperty" :loading="propertyActionPending">添加</el-button>
+                    </div>
+                </div>
 
-                                        <div v-if="keywords.length" class="compact-tags">
-                                            <el-tag v-for="keyword in keywords" :key="keyword" type="info" closable
-                                                @close="removeKeyword(keyword)">
-                                                {{ keyword }}
-                                            </el-tag>
-                                        </div>
+                <el-divider />
 
-                                        <div class="compact-forms">
-                                            <el-input v-model="newKeyword" placeholder="输入新关键词" clearable
-                                                :disabled="keywordActionPending" @keyup.enter="addKeyword" size="small" />
-                                            <el-button type="primary" :loading="keywordActionPending" @click="addKeyword" size="small">
-                                                添加
-                                            </el-button>
-                                        </div>
-                                    </div>
-
-                                    <div class="compact-column">
-                                        <div class="section-title">属性</div>
-
-                                        <div v-if="propertys.length" class="compact-tags">
-                                            <el-tag v-for="prop in propertys" :key="prop.name + prop.value" type="success" closable
-                                                @close="removeProperty(prop)">
-                                                {{ prop.name }}：{{ prop.value }}
-                                            </el-tag>
-                                        </div>
-
-                                        <div class="compact-forms">
-                                            <el-input ref="propertyNameInput" v-model="newPropertyName" placeholder="属性名" clearable
-                                                :disabled="propertyActionPending" size="small"
-                                                @keyup.enter.prevent="focusPropertyValueInput" />
-                                            <el-input ref="propertyValueInput" v-model="newPropertyValue" placeholder="属性值" clearable
-                                                :disabled="propertyActionPending" size="small"
-                                                @keyup.enter.prevent="handlePropertyValueEnter" />
-                                            <el-button type="primary" :loading="propertyActionPending" @click="addProperty" size="small">
-                                                添加
-                                            </el-button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            </el-card>
-
-                        <!-- 图片文本信息 -->
-                        <el-card class="text-card" shadow="hover">
-                            <template #header>
-                                <div class="card-header-with-action">
-                                    <span>文本信息</span>
-                                    <el-button v-if="!enableEditText" type="primary" size="small" @click="newOCRTask">
-                                        <el-icon>
-                                            <Edit />
-                                        </el-icon>
-                                        设置OCR任务
-                                    </el-button>
-                                    <el-button v-if="!enableEditText" type="primary" size="small"
-                                        @click="startEditText">
-                                        <el-icon>
-                                            <Edit />
-                                        </el-icon>
-                                        编辑
-                                    </el-button>
-                                    <el-button v-else type="success" size="small" @click="submitEditText">
-                                        <el-icon>
-                                            <Check />
-                                        </el-icon>
-                                        保存
-                                    </el-button>
-                                </div>
-                            </template>
-
-                            <el-input v-model="imgText" type="textarea" :rows="15" placeholder="请输入图片相关文本信息..."
-                                :readonly="!enableEditText" resize="none" />
-                        </el-card>
-                    </el-space>
-                </el-col>
-            </el-row>
-        </el-main>
-    </el-container>
+                <!-- Text / OCR -->
+                <div class="section text-section">
+                    <div class="section-header">
+                        <div class="section-title">文本内容</div>
+                        <div class="actions">
+                            <el-button v-if="!enableEditText" link size="small" @click="newOCRTask">OCR识别</el-button>
+                            <el-button v-if="!enableEditText" link type="primary" size="small"
+                                @click="startEditText">编辑</el-button>
+                            <el-button v-else link type="primary" size="small" @click="submitEditText">保存</el-button>
+                        </div>
+                    </div>
+                    <div class="text-content-wrapper">
+                        <el-input v-model="imgText" type="textarea" :rows="10" placeholder="暂无文本信息"
+                            :readonly="!enableEditText" resize="none" class="text-area-custom" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </template>
 
 <style scoped>
-.detail-container {
-    height: 95vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 20px;
-}
-
-.el-main {
+/* Reset & Layout */
+.layout-container {
+    display: flex;
     height: 90vh;
+    width: 100vw;
+    overflow: hidden;
+    background-color: #fff;
 }
 
-.image-card,
-.info-card,
-.text-card {
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.image-card {
-    height: 85vh;
-}
-
-.card-header-with-zoom {
+/* Left: Image Viewer */
+.image-viewer {
+    flex: 1;
+    background-color: #f5f5f7;
+    /* Neutral gray */
+    position: relative;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 18px;
-    font-weight: 600;
-    color: #333;
-    gap: 20px;
-}
-
-.zoom-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.zoom-level {
-    min-width: 50px;
-    text-align: center;
-    font-weight: 600;
-    color: #666;
-}
-
-.card-header-with-action {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 16px;
-    font-weight: 600;
-    color: #333;
-}
-
-.image-container {
-    padding: 20px;
-    height: calc(85vh - 120px);
+    flex-direction: column;
     overflow: hidden;
 }
 
-.image-scroll-wrapper {
-    width: 100%;
-    height: 100%;
-    overflow-y: auto;
-    overflow-x: hidden;
-    border-radius: 8px;
-    position: relative;
-    /* 自定义滚动条样式 */
-    scrollbar-width: thin;
-    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+.image-stage {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    overflow: auto;
+    padding: 20px;
 }
 
-/* WebKit浏览器滚动条样式 */
-.image-scroll-wrapper::-webkit-scrollbar {
-    width: 8px;
-}
-
-.image-scroll-wrapper::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
-}
-
-.image-scroll-wrapper::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 4px;
-    transition: background 0.3s;
-}
-
-.image-scroll-wrapper::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.5);
-}
-
-.scrollable-image {
-    width: 100%;
+.image-content {
     min-height: 100%;
-    object-fit: contain;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    transition: width 0.2s ease-out;
+}
+
+.main-image {
+    width: 100%;
+    height: auto;
     display: block;
-    transition: transform 0.2s ease-in-out;
-    transform-origin: center top;
 }
 
-.scrollable-image :deep(.el-image__inner) {
-    width: 100% !important;
-    height: auto !important;
-    object-fit: contain;
-    cursor: grab;
-    transition: transform 0.2s ease-in-out;
-}
-
-.scrollable-image :deep(.el-image__inner:active) {
-    cursor: grabbing;
-}
-
-.image-slot {
+.image-error {
     display: flex;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
-    font-size: 14px;
-    color: var(--el-text-color-placeholder);
-    height: 200px;
+    color: #909399;
+    gap: 10px;
 }
 
-.image-slot .el-icon {
-    font-size: 48px;
+.zoom-bar {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.9);
+    padding: 4px;
+    border-radius: 20px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(4px);
+}
+
+/* Right: Details Panel */
+.details-panel {
+    width: 400px;
+    background: #fff;
+    border-left: 1px solid #e4e7ed;
+    display: flex;
+    flex-direction: column;
+    padding-right: 10px;
+    z-index: 10;
+}
+
+.panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+/* Typography & Sections */
+.section {
     margin-bottom: 8px;
 }
 
-/* Compact combined keywords & properties section */
-.compact-section {
-    padding: 8px 0 4px 0;
-}
-
-.compact-row {
+.section-header {
     display: flex;
-    gap: 20px;
     justify-content: space-between;
     align-items: flex-start;
+    margin-bottom: 12px;
 }
 
-.compact-column {
-    flex: 1;
-    min-width: 180px;
+.title-display {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #303133;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.title-input {
+    font-size: 16px;
+}
+
+.meta-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #606266;
+    font-size: 14px;
+}
+
+.label {
+    color: #909399;
 }
 
 .section-title {
+    font-size: 14px;
     font-weight: 600;
-    color: #333;
-    margin-bottom: 6px;
+    color: #303133;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.compact-tags {
+/* Keywords */
+.tags-wrapper {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 8px;
-}
-
-.compact-forms {
-    display: flex;
     gap: 8px;
     align-items: center;
-    margin-top: 12px;
 }
 
-.compact-forms :deep(.el-input) {
-    flex: 1;
+.custom-tag {
+    border-radius: 4px;
 }
 
-.el-form {
-    padding: 10px 0;
+.add-tag-wrapper {
+    width: 120px;
 }
 
-.el-form-item {
-    margin-bottom: 20px;
+/* Properties */
+.props-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
 }
 
-.el-text {
-    font-size: 16px;
+.prop-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: #f9fafc;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.prop-name {
+    color: #606266;
     font-weight: 500;
-    color: #333;
 }
 
-/* 响应式设计 */
-@media (max-width: 1000px) or (orientation: portrait) {
-    .detail-container {
+.prop-value {
+    color: #303133;
+    flex: 1;
+    text-align: right;
+    margin: 0 12px;
+}
+
+.delete-prop {
+    padding: 0;
+    height: auto;
+    opacity: 0.5;
+}
+
+.delete-prop:hover {
+    opacity: 1;
+}
+
+.add-prop-row {
+    display: flex;
+    gap: 8px;
+}
+
+/* Text Area */
+.text-area-custom :deep(.el-textarea__inner) {
+    background-color: #f9fafc;
+    border: none;
+    padding: 12px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #303133;
+}
+
+.text-area-custom :deep(.el-textarea__inner:focus) {
+    background-color: #fff;
+    box-shadow: 0 0 0 1px #409eff inset;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .layout-container {
+        flex-direction: column;
+        height: auto;
         min-height: 100vh;
+    }
+
+    .image-viewer {
+        height: 50vh;
+        flex: none;
+        border-bottom: 1px solid #e4e7ed;
+    }
+
+    .details-panel {
+        width: 100%;
         height: auto;
-        padding: 15px;
-        overflow-x: hidden;
+        border-left: none;
+        flex: 1;
     }
 
-    .el-main {
-        height: auto;
-        padding: 0;
-        overflow-x: hidden;
-    }
-
-    .el-row {
-        height: auto !important;
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .el-col {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin-bottom: 20px;
-    }
-
-    .image-card,
-    .info-card,
-    .text-card {
-        height: auto;
-        min-height: auto;
-    }
-
-    .image-card {
-        order: 1;
-    }
-
-    .info-card,
-    .text-card {
-        order: 2;
-    }
-
-    .card-header-with-zoom {
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .zoom-controls {
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-
-    .image-container {
-        padding: 10px;
-        height: 60vh;
-    }
-
-    .image-scroll-wrapper {
-        height: 100%;
-    }
-
-    .compact-row {
-        flex-direction: column;
-    }
-
-    .el-form {
-        padding: 10px 0;
-    }
-
-    .el-form-item {
-        margin-bottom: 16px;
+    .panel-content {
+        padding: 20px;
     }
 }
 </style>

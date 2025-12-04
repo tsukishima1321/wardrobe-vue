@@ -125,12 +125,17 @@ const fetchLatestDiary = async () => {
 
 const navigateTo = (path: string) => router.push(path);
 
-onMounted(() => {
-    updateTime();
-    fetchKeywords();
-    fetchRandomImage();
-    fetchStats();
-    fetchLatestDiary();
+onMounted(async () => {
+    try {
+        await updateTime();
+        await fetchKeywords();
+        await fetchRandomImage();
+        await fetchStats();
+        await fetchLatestDiary();
+    }
+    catch (e) {
+        router.push('/login');
+    }
 });
 </script>
 
@@ -180,7 +185,7 @@ onMounted(() => {
             <!-- 2. Detailed Stats -->
             <div class="card stats-card">
                 <div class="stats-header">
-                    <h3>Statistics</h3>
+                    <h3>Total Memories</h3>
                 </div>
 
                 <!-- Overall Big Numbers -->
@@ -368,6 +373,7 @@ onMounted(() => {
     transition: border-color 0.2s;
     overflow: hidden;
     position: relative;
+    box-sizing: border-box;
 }
 
 .card:hover {
@@ -661,24 +667,27 @@ onMounted(() => {
     .bento-grid {
         grid-template-columns: 1fr;
         grid-template-rows: auto;
+        display: flex;
+        flex-direction: column;
     }
 
-    .featured-card {
-        grid-row: auto;
-        height: 300px;
-    }
-
-    .stats-card {
-        grid-row: auto;
-        height: auto;
-        min-height: 400px;
-    }
-
+    .featured-card,
+    .stats-card,
     .diary-card,
     .actions-card,
     .search-card {
         grid-column: auto;
         grid-row: auto;
+        width: 100%;
+    }
+
+    .featured-card {
+        height: 300px;
+    }
+
+    .stats-card {
+        height: auto;
+        min-height: 400px;
     }
 
     .header {
