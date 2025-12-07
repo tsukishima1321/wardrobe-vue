@@ -351,12 +351,12 @@ loadImg();
                     <div class="section-title">关键词</div>
                     <div class="tags-wrapper">
                         <el-tag v-for="keyword in keywords" :key="keyword" closable type="info" effect="plain"
-                            @close="removeKeyword(keyword)" class="custom-tag" size="small">
+                            @close="removeKeyword(keyword)" class="custom-tag" style="height: 32px;">
                             {{ keyword }}
                         </el-tag>
 
                         <div class="add-tag-wrapper">
-                            <el-input v-model="newKeyword" placeholder="新关键词" size="small" class="new-tag-input"
+                            <el-input v-model="newKeyword" placeholder="新关键词" class="new-tag-input"
                                 @keyup.enter="addKeyword" :disabled="keywordActionPending">
                                 <template #append>
                                     <el-button @click="addKeyword" :loading="keywordActionPending" size="small">
@@ -379,7 +379,7 @@ loadImg();
                         <div v-for="prop in propertys" :key="prop.name + prop.value" class="prop-item">
                             <span class="prop-name">{{ prop.name }}</span>
                             <span class="prop-value">{{ prop.value }}</span>
-                            <el-button link type="danger" size="small" @click="removeProperty(prop)"
+                            <el-button link type="danger" @click="removeProperty(prop)"
                                 class="delete-prop">
                                 <el-icon>
                                     <Delete />
@@ -389,13 +389,13 @@ loadImg();
                     </div>
 
                     <div class="add-prop-row">
-                        <el-input ref="propertyNameInput" v-model="newPropertyName" placeholder="属性名" size="small"
+                        <el-input ref="propertyNameInput" v-model="newPropertyName" placeholder="属性名"
                             style="width: 35%" @keyup.enter.prevent="focusPropertyValueInput"
                             :disabled="propertyActionPending" />
-                        <el-input ref="propertyValueInput" v-model="newPropertyValue" placeholder="属性值" size="small"
+                        <el-input ref="propertyValueInput" v-model="newPropertyValue" placeholder="属性值"
                             style="flex: 1" @keyup.enter.prevent="handlePropertyValueEnter"
                             :disabled="propertyActionPending" />
-                        <el-button size="small" @click="addProperty" :loading="propertyActionPending">添加</el-button>
+                        <el-button @click="addProperty" :loading="propertyActionPending">添加</el-button>
                     </div>
                 </div>
 

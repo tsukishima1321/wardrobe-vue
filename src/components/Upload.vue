@@ -1,87 +1,159 @@
 <script setup lang="ts">
-import { fetchDataAutoRetry, checkToken, refreshAccessToken } from '../token.ts';
-import { ref } from 'vue';
+import { fetchDataAutoRetry } from '../token.ts';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElLoading } from 'element-plus';
 import type { UploadFile } from 'element-plus';
 import { debounce } from 'lodash';
+import { Plus, Delete, UploadFilled, Picture, ZoomIn, ZoomOut, Refresh } from '@element-plus/icons-vue';
 
 const router = useRouter();
 
-// basic fields
+// Queue Management
+interface QueueItem {
+    file: File;
+    uid: number;
+    previewUrl: string;
+}
+
+const fileQueue = ref<QueueItem[]>([]);
+const currentIndex = ref(0);
+const currentFile = computed(() => fileQueue.value[currentIndex.value]);
+
+// Zoom Controls
+const zoomLevel = ref(1);
+const minZoom = 0.1;
+const maxZoom = 5;
+const zoomStep = 0.2;
+
+const zoomIn = () => {
+    if (zoomLevel.value < maxZoom) {
+        zoomLevel.value = Math.min(zoomLevel.value + zoomStep, maxZoom);
+    }
+}
+
+const zoomOut = () => {
+    if (zoomLevel.value > minZoom) {
+        zoomLevel.value = Math.max(zoomLevel.value - zoomStep, minZoom);
+    }
+}
+
+const resetZoom = () => {
+    zoomLevel.value = 1;
+}
+
+// Form Data
 const imgTitle = ref('');
 const imgDate = ref(new Date().toISOString().split('T')[0]);
 const isOCR = ref(true);
-const fileList = ref<UploadFile[]>([]);
-const previewImageUrl = ref('');
-const loading = ref(false);
-
-// new: keywords and properties
 const keywords = ref<string[]>([]);
 const newKeyword = ref('');
-const keywordsHint = ref<Array<string>>([]);
-const propertiesHint = ref<Array<string>>([]);
+const properties = ref<{ name: string; value: string }[]>([]);
+const newPropertyName = ref('');
+const newPropertyValue = ref('');
+
+// Hints
+const keywordsHint = ref<string[]>([]);
+const propertiesHint = ref<string[]>([]);
 
 const updateSearchHint = debounce(async () => {
-    let data = await fetchDataAutoRetry('/api/searchhint/', {}, 'GET') as { keywords: Array<string>, properties: Array<string> };
-    keywordsHint.value = data.keywords;
-    propertiesHint.value = data.properties;
+    try {
+        let data = await fetchDataAutoRetry('/api/searchhint/', {}, 'GET') as { keywords: Array<string>, properties: Array<string> };
+        keywordsHint.value = data.keywords;
+        propertiesHint.value = data.properties;
+    } catch (e) {
+        console.error(e);
+    }
 }, 300);
 
 updateSearchHint();
 
-type PropItem = { name: string; value: string };
-const properties = ref<PropItem[]>([]);
-const propName = ref('');
-const propValue = ref('');
+// Autocomplete Helpers
+const createFilter = (queryString: string) => {
+    return (item: string) => {
+        return (item.toLowerCase().indexOf(queryString.toLowerCase()) === 0);
+    };
+};
 
-const handleFileChange = (file: UploadFile) => {
-    if (file.raw) {
+const querySearchKeywords = (queryString: string, cb: any) => {
+    const results = queryString
+        ? keywordsHint.value.filter(createFilter(queryString))
+        : keywordsHint.value;
+    cb(results.map(v => ({ value: v })));
+};
+
+const querySearchProps = (queryString: string, cb: any) => {
+    const results = queryString
+        ? propertiesHint.value.filter(createFilter(queryString))
+        : propertiesHint.value;
+    cb(results.map(v => ({ value: v })));
+};
+
+const handleSelectKeyword = (item: any) => {
+    newKeyword.value = item.value;
+    addKeyword();
+};
+
+// File Operations
+const handleFileChange = (uploadFile: UploadFile) => {
+    if (uploadFile.raw) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            previewImageUrl.value = e.target?.result as string;
+            const newItem: QueueItem = {
+                file: uploadFile.raw!,
+                uid: uploadFile.uid,
+                previewUrl: e.target?.result as string
+            };
+            fileQueue.value.push(newItem);
+
+            // If this is the first file added, init form
+            if (fileQueue.value.length === 1) {
+                currentIndex.value = 0;
+                initFormForFile(newItem);
+            }
         };
-        reader.readAsDataURL(file.raw);
+        reader.readAsDataURL(uploadFile.raw);
     }
-    fileList.value = [file];
-    return false; // 阻止自动上传
 };
 
-const handleRemove = () => {
-    fileList.value = [];
-    previewImageUrl.value = '';
+const initFormForFile = (item: QueueItem) => {
+    const name = item.file.name;
+    imgTitle.value = name.substring(0, name.lastIndexOf('.')) || name;
+    // Keep Date and OCR settings as they are likely common
+    keywords.value = [];
+    properties.value = [];
 };
 
-
-// properties helpers
-const addProperty = () => {
-    const name = propName.value.trim();
-    const value = propValue.value.trim();
-    if (!name || !value) {
-        ElMessage.warning('属性名和值都不能为空');
-        return;
+const selectFile = (index: number) => {
+    if (index >= 0 && index < fileQueue.value.length) {
+        currentIndex.value = index;
+        initFormForFile(fileQueue.value[index]);
     }
-    properties.value.push({ name, value });
-    propName.value = '';
-    propValue.value = '';
 };
 
-const removeProperty = (index: number) => {
-    properties.value.splice(index, 1);
-};
-
-const submitEdit = async () => {
-    if (fileList.value.length === 0) {
-        ElMessage.warning('请选择要上传的图片');
-        return;
+const removeFile = (index: number) => {
+    fileQueue.value.splice(index, 1);
+    if (fileQueue.value.length === 0) {
+        currentIndex.value = 0;
+    } else {
+        if (index < currentIndex.value) {
+            currentIndex.value--;
+        } else if (index === currentIndex.value) {
+            if (currentIndex.value >= fileQueue.value.length) {
+                currentIndex.value = fileQueue.value.length - 1;
+            }
+            initFormForFile(fileQueue.value[currentIndex.value]);
+        }
     }
+};
 
+const submitCurrent = async () => {
+    if (!currentFile.value) return;
     if (!imgTitle.value.trim()) {
-        ElMessage.warning('请输入图片标题');
+        ElMessage.warning('请输入标题');
         return;
     }
 
-    loading.value = true;
     const loadingInstance = ElLoading.service({
         lock: true,
         text: '上传中...',
@@ -89,300 +161,489 @@ const submitEdit = async () => {
     });
 
     try {
-        const imgFile = fileList.value[0].raw!;
         const formData = new FormData();
-        formData.append('image', imgFile);
+        formData.append('image', currentFile.value.file);
         formData.append('title', imgTitle.value);
         formData.append('date', imgDate.value);
         formData.append('doOCR', isOCR.value ? 'true' : 'false');
-
-        // append new fields as JSON strings (assumption: backend accepts JSON)
         formData.append('keywords', JSON.stringify(keywords.value));
         formData.append('properties', JSON.stringify(properties.value));
 
-        try {
-            fetchDataAutoRetry('/api/image/new/', formData, 'POST', false);
-            ElMessage.success('上传成功!');
-            // 重置表单
-            fileList.value = [];
-            previewImageUrl.value = '';
-            imgTitle.value = '';
-            keywords.value = [];
-            properties.value = [];
-            // 为便于连续上传，不重置ocr和类型选择和日期
-        } catch (error) {
-            ElMessage.error('上传失败!');
-            console.error('Submit edit failed:', error);
-            return;
-        }
+        await fetchDataAutoRetry('/api/image/new/', formData, 'POST', false);
+        ElMessage.success('上传成功');
+
+        // Remove current file and move to next
+        removeFile(currentIndex.value);
+
     } catch (error) {
-        console.error('Upload error:', error);
-        ElMessage.error('上传失败!');
+        console.error(error);
+        ElMessage.error('上传失败');
     } finally {
-        loading.value = false;
         loadingInstance.close();
     }
 };
 
-const focusPropertyValueInput = () => {
-    const inputs = document.querySelectorAll('input');
-    for (let input of inputs) {
-        if (input.getAttribute('placeholder') === '属性值') {
-            (input as HTMLInputElement).focus();
-            break;
-        }
+// Keyword & Property Logic
+const addKeyword = () => {
+    const val = newKeyword.value.trim();
+    if (val && !keywords.value.includes(val)) {
+        keywords.value.push(val);
+        newKeyword.value = '';
     }
+};
+
+const removeKeyword = (k: string) => {
+    keywords.value = keywords.value.filter(item => item !== k);
+};
+
+const addProperty = () => {
+    const name = newPropertyName.value.trim();
+    const value = newPropertyValue.value.trim();
+    if (name && value) {
+        properties.value.push({ name, value });
+        newPropertyName.value = '';
+        newPropertyValue.value = '';
+    }
+};
+
+const removeProperty = (index: number) => {
+    properties.value.splice(index, 1);
 };
 
 </script>
 
 <template>
-    <el-container class="upload-container">
-        <el-main>
-            <el-row :gutter="20" style="height: 100%;">
-                <!-- 左侧：图片预览区域 -->
-                <el-col :span="12">
-                    <el-card class="preview-card" shadow="hover">
-                        <template #header>
-                            <div class="card-header">
-                                <span>图片预览</span>
-                            </div>
-                        </template>
-                        <!-- 上传组件 -->
-                        <el-upload v-model:file-list="fileList" :on-change="handleFileChange" :on-remove="handleRemove"
-                            :limit="1" accept="image/*" list-type="picture-card" :auto-upload="false">
+    <div class="layout-container">
+        <!-- Left: Image Viewer & Queue -->
+        <div class="image-viewer">
+            <!-- Empty State / Drop Zone -->
+            <div v-if="fileQueue.length === 0" class="empty-state">
+                <el-upload class="upload-drop-zone" drag multiple :auto-upload="false" :show-file-list="false"
+                    :on-change="handleFileChange" accept="image/*">
+                    <el-icon class="el-icon--upload">
+                        <upload-filled />
+                    </el-icon>
+                    <div class="el-upload__text">
+                        拖拽图片到此处 或 <em>点击上传</em>
+                    </div>
+                </el-upload>
+            </div>
+
+            <!-- Image Preview -->
+            <div v-else class="image-stage">
+                <div class="image-content" :style="{ width: `${zoomLevel * 100}%` }">
+                    <el-image :src="currentFile.previewUrl" :preview-src-list="[currentFile.previewUrl]" class="main-image" />
+                </div>
+            </div>
+
+            <!-- Floating Zoom Controls -->
+            <div v-if="fileQueue.length > 0" class="zoom-bar">
+                <el-button-group>
+                    <el-button :icon="ZoomOut" circle @click="zoomOut" :disabled="zoomLevel <= minZoom" />
+                    <el-button @click="resetZoom" :disabled="zoomLevel === 1">{{ Math.round(zoomLevel * 100)
+                        }}%</el-button>
+                    <el-button :icon="ZoomIn" circle @click="zoomIn" :disabled="zoomLevel >= maxZoom" />
+                </el-button-group>
+            </div>
+
+            <!-- Thumbnail Strip -->
+            <div v-if="fileQueue.length > 0" class="thumbnail-strip">
+                <div class="strip-content">
+                    <div v-for="(item, index) in fileQueue" :key="item.uid" class="thumb-item"
+                        :class="{ active: index === currentIndex }" @click="selectFile(index)">
+                        <el-image :src="item.previewUrl" fit="cover" class="thumb-img" />
+                        <div class="thumb-overlay" @click.stop="removeFile(index)">
+                            <el-icon>
+                                <Delete />
+                            </el-icon>
+                        </div>
+                    </div>
+                    <!-- Add More -->
+                    <el-upload class="thumb-uploader" multiple :auto-upload="false" :show-file-list="false"
+                        :on-change="handleFileChange" accept="image/*">
+                        <div class="add-thumb">
                             <el-icon>
                                 <Plus />
                             </el-icon>
-                            <template #tip>
-                                <div class="el-upload__tip">
-                                    只能上传图片文件
-                                </div>
-                            </template>
-                        </el-upload>
-
-                        <!-- 图片预览 -->
-                        <div v-if="previewImageUrl" class="preview-container">
-                            <el-image :src="previewImageUrl" fit="contain" style="width: 100%; max-height: 500px;"
-                                :preview-src-list="[previewImageUrl]" />
                         </div>
-                    </el-card>
-                </el-col>
+                    </el-upload>
+                </div>
+            </div>
+        </div>
 
-                <!-- 右侧：表单区域 -->
-                <el-col :span="12">
-                    <el-card class="form-card" shadow="hover">
-                        <template #header>
-                            <div class="card-header">
-                                <span>图片信息</span>
-                            </div>
-                        </template>
+        <!-- Right: Details Panel -->
+        <div class="details-panel">
+            <div v-if="fileQueue.length === 0" class="panel-empty">
+                <el-empty description="请选择图片开始上传" />
+            </div>
+            <div v-else class="panel-content">
+                <!-- Header -->
+                <div class="section basic-info">
+                    <div class="section-header">
+                        <div class="header-left">
+                            <span class="queue-info">待处理: {{ fileQueue.length }}</span>
+                        </div>
+                        <el-button type="primary" @click="submitCurrent">
+                            <el-icon>
+                                <UploadFilled />
+                            </el-icon> 提交当前
+                        </el-button>
+                    </div>
 
-                        <el-form :model="{ imgTitle, imgDate, isOCR }" label-width="100px" size="large">
-                            <!-- 图片标题 -->
-                            <el-form-item label="图片标题" required>
-                                <el-input v-model="imgTitle" placeholder="请输入图片标题" clearable />
-                            </el-form-item>
+                    <el-form label-position="top" size="default">
+                        <el-form-item label="标题">
+                            <el-input v-model="imgTitle" placeholder="图片标题" />
+                        </el-form-item>
+                        <el-row :gutter="10">
+                            <el-col :span="12">
+                                <el-form-item label="日期">
+                                    <el-date-picker v-model="imgDate" type="date" placeholder="选择日期" style="width: 100%"
+                                        format="YYYY-MM-DD" value-format="YYYY-MM-DD" />
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="OCR">
+                                    <el-switch v-model="isOCR" active-text="启用" />
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                    </el-form>
+                </div>
 
-                            <!-- 图片日期 -->
-                            <el-form-item label="图片日期">
-                                <el-date-picker v-model="imgDate" type="date" placeholder="选择日期" style="width: 100%;"
-                                    format="YYYY-MM-DD" value-format="YYYY-MM-DD" />
-                            </el-form-item>
+                <el-divider />
 
-                            <!-- OCR 开关 -->
-                            <el-form-item label="启用OCR">
-                                <el-switch v-model="isOCR" active-text="是" inactive-text="否" />
-                            </el-form-item>
+                <!-- Keywords -->
+                <div class="section">
+                    <div class="section-title">关键词</div>
+                    <div class="tags-wrapper">
+                        <el-tag v-for="k in keywords" :key="k" closable type="info" effect="plain"
+                            @close="removeKeyword(k)" class="custom-tag" style="height: 32px;">
+                            {{ k }}
+                        </el-tag>
 
-                            <!-- 关键词 -->
-                            <el-form-item label="关键词">
-                                <el-col>
-                                    <el-row :gutter="8">
-                                        <div class="keywords-row" style="display:flex; align-items:center; gap:10px;">
-                                            <ElSelect v-model="keywords" multiple filterable allow-create
-                                                placeholder="选择或输入关键词" style="flex: 3; min-width: 200px;">
-                                                <ElOption v-for="k in keywordsHint" :key="k" :label="k" :value="k" />
-                                            </ElSelect>
-                                        </div>
-                                    </el-row>
-                                </el-col>
-                            </el-form-item>
+                        <div class="add-tag-wrapper">
+                            <el-autocomplete v-model="newKeyword" :fetch-suggestions="querySearchKeywords"
+                                placeholder="新关键词" class="new-tag-input" @select="handleSelectKeyword"
+                                @keyup.enter="addKeyword">
+                                <template #append>
+                                    <el-button @click="addKeyword" size="small">
+                                        <el-icon>
+                                            <Plus />
+                                        </el-icon>
+                                    </el-button>
+                                </template>
+                            </el-autocomplete>
+                        </div>
+                    </div>
+                </div>
 
-                            <!-- 属性（可重复） -->
-                            <el-form-item label="属性">
-                                <el-col>
-                                    <el-row :gutter="8">
-                                        <el-col :span="10">
-                                            <el-input v-model="propName" placeholder="属性名" clearable
-                                                @keyup.enter.prevent="focusPropertyValueInput" />
-                                        </el-col>
-                                        <el-col :span="10">
-                                            <el-input v-model="propValue" placeholder="属性值" clearable
-                                                @keyup.enter.prevent="addProperty" />
-                                        </el-col>
-                                        <el-col :span="4">
-                                            <el-button type="primary" @click="addProperty"
-                                                style="width: 100%;">添加</el-button>
-                                        </el-col>
-                                    </el-row>
-                                    <el-row>
-                                        <div style="margin-top: 8px; display:flex; gap:8px; flex-wrap:wrap;">
-                                            <el-tag v-for="(p, i) in properties" :key="p.name + p.value + i" closable
-                                                @close="removeProperty(i)">
-                                                {{ p.name }}: {{ p.value }}
-                                            </el-tag>
-                                        </div>
-                                    </el-row>
-                                </el-col>
-                            </el-form-item>
+                <el-divider />
 
-                            <!-- 提交按钮 -->
-                            <el-form-item>
-                                <el-button type="primary" size="large" :loading="loading" @click="submitEdit"
-                                    style="width: 100%;">
-                                    <el-icon>
-                                        <Upload />
-                                    </el-icon>
-                                    {{ loading ? '上传中...' : '上传图片' }}
-                                </el-button>
-                            </el-form-item>
-                        </el-form>
-                    </el-card>
-                </el-col>
-            </el-row>
-        </el-main>
-    </el-container>
+                <!-- Properties -->
+                <div class="section">
+                    <div class="section-title">属性</div>
+                    <div class="props-list">
+                        <div v-for="(p, i) in properties" :key="i" class="prop-item">
+                            <span class="prop-name">{{ p.name }}</span>
+                            <span class="prop-value">{{ p.value }}</span>
+                            <el-button link type="danger" size="small" @click="removeProperty(i)">
+                                <el-icon>
+                                    <Delete />
+                                </el-icon>
+                            </el-button>
+                        </div>
+                    </div>
+                    <div class="add-prop-row">
+                        <el-autocomplete v-model="newPropertyName" :fetch-suggestions="querySearchProps"
+                            placeholder="属性名" style="width: 40%" />
+                        <el-input v-model="newPropertyValue" placeholder="属性值" style="flex: 1"
+                            @keyup.enter="addProperty" />
+                        <el-button @click="addProperty">添加</el-button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </template>
 
 <style scoped>
-.upload-container {
-    min-height: 90vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 20px;
-}
-
-.preview-card,
-.form-card {
-    height: 100%;
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.card-header {
+/* Layout */
+.layout-container {
     display: flex;
-    justify-content: center;
+    height: 95vh;
+    width: 100vw;
+    overflow: hidden;
+    background-color: #fff;
+}
+
+/* Left: Image Viewer */
+.image-viewer {
+    flex: 1;
+    background-color: #f5f5f7;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.empty-state {
+    flex: 1;
+    display: flex;
     align-items: center;
-    font-size: 18px;
-    font-weight: 600;
-    color: #333;
+    justify-content: center;
 }
 
-.preview-container {
-    margin-top: 20px;
-    text-align: center;
+.upload-drop-zone {
+    width: 100%;
+    max-width: 400px;
 }
 
-.el-image {
-    overflow: scroll;
+.image-stage {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    overflow: auto;
+    padding: 20px;
+    padding-bottom: 100px;
+    /* Space for thumbnail strip */
 }
 
-.el-upload {
-    border: 2px dashed #d9d9d9;
-    border-radius: 8px;
+.image-content {
+    min-height: 100%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    transition: width 0.2s ease-out;
+}
+
+.main-image {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.zoom-bar {
+    position: absolute;
+    bottom: 110px;
+    /* Above thumbnail strip */
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.9);
+    padding: 4px;
+    border-radius: 20px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(4px);
+    z-index: 20;
+}
+
+/* Thumbnail Strip */
+.thumbnail-strip {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 90px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid #e4e7ed;
+    padding: 10px;
+    z-index: 10;
+}
+
+.strip-content {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    height: 100%;
+    align-items: center;
+    padding: 0 10px;
+}
+
+.thumb-item {
+    width: 60px;
+    height: 60px;
+    border-radius: 6px;
+    overflow: hidden;
     cursor: pointer;
     position: relative;
-    overflow: hidden;
-    transition: border-color 0.3s;
+    border: 2px solid transparent;
+    flex-shrink: 0;
+    transition: all 0.2s;
 }
 
-.el-upload:hover {
+.thumb-item.active {
     border-color: #409eff;
-}
-
-.el-form {
-    padding: 20px 0;
-}
-
-.el-form-item {
-    margin-bottom: 24px;
-}
-
-.el-button {
-    border-radius: 8px;
-    font-size: 16px;
-    padding: 12px 24px;
-    transition: all 0.3s;
-}
-
-.el-button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+    box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
 }
 
-/* 响应式设计 */
+.thumb-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.thumb-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+    color: #fff;
+}
+
+.thumb-item:hover .thumb-overlay {
+    opacity: 1;
+}
+
+.add-thumb {
+    width: 60px;
+    height: 60px;
+    border-radius: 6px;
+    border: 1px dashed #dcdfe6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #909399;
+    transition: all 0.2s;
+}
+
+.add-thumb:hover {
+    border-color: #409eff;
+    color: #409eff;
+}
+
+/* Right: Details Panel */
+.details-panel {
+    width: 400px;
+    background: #fff;
+    border-left: 1px solid #e4e7ed;
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+}
+
+.panel-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.section {
+    margin-bottom: 16px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.queue-info {
+    font-size: 14px;
+    color: #606266;
+    font-weight: 500;
+}
+
+.section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #303133;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Keywords */
+.tags-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.custom-tag {
+    border-radius: 4px;
+}
+
+.add-tag-wrapper {
+    width: 140px;
+}
+
+/* Properties */
+.props-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.prop-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: #f9fafc;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.prop-name {
+    color: #606266;
+    font-weight: 500;
+}
+
+.prop-value {
+    color: #303133;
+    flex: 1;
+    text-align: right;
+    margin: 0 12px;
+}
+
+.add-prop-row {
+    display: flex;
+    gap: 8px;
+}
+
+/* Mobile Responsive */
 @media (max-width: 768px) {
-    .upload-container {
-        padding: 10px;
-    }
-
-    .el-row {
+    .layout-container {
         flex-direction: column;
-    }
-
-    .el-col {
-        width: 100% !important;
-        max-width: 100% !important;
-    }
-
-    .preview-card,
-    .form-card {
         height: auto;
-        min-height: auto;
-    }
-
-    .preview-container {
-        margin-top: 15px;
-    }
-
-    .el-image {
-        max-height: 300px !important;
-    }
-}
-
-/* 竖屏设备优化 */
-@media (max-width: 768px) and (orientation: portrait) {
-    .upload-container {
         min-height: 100vh;
-        padding: 15px;
     }
 
-    .el-main {
-        padding: 0;
+    .image-viewer {
+        height: 70vh;
+        flex: none;
+        border-bottom: 1px solid #e4e7ed;
     }
 
-    .el-row {
-        height: auto !important;
-        flex-direction: column;
-        gap: 20px;
+    .details-panel {
+        width: 100%;
+        height: auto;
+        border-left: none;
+        flex: 1;
     }
 
-    .preview-card {
-        order: 1;
-    }
-
-    .form-card {
-        order: 2;
-    }
-
-    .el-form {
-        padding: 15px 0;
-    }
-
-    .el-form-item {
-        margin-bottom: 20px;
+    .panel-content {
+        padding: 20px;
     }
 }
 </style>
