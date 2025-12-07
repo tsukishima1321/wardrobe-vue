@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { ElCollapse, ElCollapseItem, ElDatePicker, ElCheckbox, ElSelect, ElOption, ElInput, ElButton, ElTag, ElIcon } from 'element-plus';
+import { ElCollapse, ElCollapseItem, ElDatePicker, ElCheckbox, ElSelect, ElOption, ElInput, ElButton, ElTag, ElIcon, ElSwitch } from 'element-plus';
 import { Delete, Plus } from '@element-plus/icons-vue';
 import { fetchDataAutoRetry } from '@/token';
 
@@ -22,6 +22,7 @@ export interface SearchParams {
     properties?: Array<PropItem>;
     excludedKeywords?: Array<string>;
     excludedProperties?: Array<PropItem>;
+    propertiesPrecise?: boolean;
 }
 
 const props = defineProps<{
@@ -176,6 +177,9 @@ getSavedSearches();
             </el-collapse-item>
 
             <el-collapse-item title="Properties" name="3">
+                <div style="margin-bottom: 8px;">
+                    <el-switch v-model="localParams.propertiesPrecise" active-text="Precise Match" @change="updateParams" />
+                </div>
                 <div class="add-property">
                     <el-select v-model="newPropName" filterable allow-create placeholder="Name" size="small"
                         style="margin-bottom: 4px;">

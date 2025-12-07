@@ -25,6 +25,7 @@ export interface SearchParams {
     properties: Array<{ name: string; value: string }>;
     excludedKeywords: string[];
     excludedProperties: Array<{ name: string; value: string }>;
+    propertiesPrecise?: boolean;
 }
 
 interface SearchResponse {
@@ -56,7 +57,8 @@ const searchParams = ref<SearchParams>({
     keywords: [],
     properties: [],
     excludedKeywords: [],
-    excludedProperties: []
+    excludedProperties: [],
+    propertiesPrecise: false
 });
 
 const blobImgList = ref<BlobImgItem[]>([]);
@@ -139,7 +141,8 @@ const updateSearch = debounce(async () => {
         keywords: searchParams.value.keywords,
         properties: searchParams.value.properties,
         excludedKeywords: searchParams.value.excludedKeywords,
-        excludedProperties: searchParams.value.excludedProperties
+        excludedProperties: searchParams.value.excludedProperties,
+        propertiesPrecise: searchParams.value.propertiesPrecise
     };
 
     try {
