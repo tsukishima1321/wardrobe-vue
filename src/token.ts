@@ -48,12 +48,12 @@ export async function GetBlobImgSrc(url: string): Promise<string> {
     }
 }
 
-export async function fetchJsonWithToken(url: string, token: string, para: object, method: string): Promise<object> {
+export async function fetchJsonWithToken(url: string, token: string, para: object, method: string, json: boolean): Promise<object> {
     let response;
     if (method == 'POST') {
         response = await fetch(url, {
             method: "POST",
-            body: JSON.stringify(para),
+            body: json ? JSON.stringify(para) : para as any,
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer ' + token
@@ -97,7 +97,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<boolean>
     return true;
 }
 
-export async function fetchDataAutoRetry(url: string, para: object, method = 'POST'): Promise<object> {
+export async function fetchDataAutoRetry(url: string, para: object, method = 'POST', json = true): Promise<object> {
     let data;
     try {
         let accessToken = localStorage.getItem('wardrobe-access-token');
@@ -105,7 +105,7 @@ export async function fetchDataAutoRetry(url: string, para: object, method = 'PO
             console.log('No access token found. Please log in again.');
             throw new Error('No access token found. Please log in again.');
         }
-        data = await fetchJsonWithToken(url, accessToken, para, method) as any;
+        data = await fetchJsonWithToken(url, accessToken, para, method, json) as any;
         if (data.message === 'not authorized') {
             const refreshToken = localStorage.getItem('wardrobe-refresh-token');
             if (!refreshToken) {
@@ -119,7 +119,7 @@ export async function fetchDataAutoRetry(url: string, para: object, method = 'PO
                         console.log('No access token found. Please log in again.');
                         throw new Error('No access token found. Please log in again.');
                     }
-                    data = await fetchJsonWithToken(url, accessToken, para, method);
+                    data = await fetchJsonWithToken(url, accessToken, para, method, json);
                 }
                 else {
                     console.log('Refresh token failed. Please log in again.');

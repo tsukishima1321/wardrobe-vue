@@ -100,66 +100,37 @@ const submitEdit = async () => {
         formData.append('keywords', JSON.stringify(keywords.value));
         formData.append('properties', JSON.stringify(properties.value));
 
-        const url = '/api/image/new/';
-        const token = localStorage.getItem('wardrobe-access-token');
-        if (!token) {
-            router.push('/login');
-            return;
-        }
-
-        let response;
-        if (await checkToken(token)) {
-            response = await fetch(url, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'Authorization': 'Bearer ' + token
-                }
-            });
-        } else {
-            const refreshToken = localStorage.getItem('wardrobe-refresh-token');
-            if (!refreshToken) {
-                console.error('Refresh token not found!');
-                router.push('/login');
-                return;
-            }
-            try {
-                await refreshAccessToken(refreshToken);
-            } catch (error) {
-                console.error('Refresh token failed:', error);
-                router.push('/login');
-                return;
-            }
-            const newToken = localStorage.getItem('wardrobe-access-token');
-            response = await fetch(url, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'Authorization': 'Bearer ' + newToken
-                }
-            });
-        }
-
-        if (!response.ok) {
+        try {
+            fetchDataAutoRetry('/api/image/new/', formData, 'POST', false);
+            ElMessage.success('上传成功!');
+            // 重置表单
+            fileList.value = [];
+            previewImageUrl.value = '';
+            imgTitle.value = '';
+            keywords.value = [];
+            properties.value = [];
+            // 为便于连续上传，不重置ocr和类型选择和日期
+        } catch (error) {
             ElMessage.error('上传失败!');
-            console.error('Submit edit failed:', response);
+            console.error('Submit edit failed:', error);
             return;
         }
-
-        ElMessage.success('上传成功!');
-        // 重置表单
-        fileList.value = [];
-        previewImageUrl.value = '';
-        imgTitle.value = '';
-        keywords.value = [];
-        properties.value = [];
-        // 为便于连续上传，不重置ocr和类型选择和日期
     } catch (error) {
         console.error('Upload error:', error);
         ElMessage.error('上传失败!');
     } finally {
         loading.value = false;
         loadingInstance.close();
+    }
+};
+
+const focusPropertyValueInput = () => {
+    const inputs = document.querySelectorAll('input');
+    for (let input of inputs) {
+        if (input.getAttribute('placeholder') === '属性值') {
+            (input as HTMLInputElement).focus();
+            break;
+        }
     }
 };
 
@@ -231,8 +202,7 @@ const submitEdit = async () => {
                                         <div class="keywords-row" style="display:flex; align-items:center; gap:10px;">
                                             <ElSelect v-model="keywords" multiple filterable allow-create
                                                 placeholder="选择或输入关键词" style="flex: 3; min-width: 200px;">
-                                                <ElOption v-for="k in keywordsHint" :key="k" :label="k"
-                                                    :value="k" />
+                                                <ElOption v-for="k in keywordsHint" :key="k" :label="k" :value="k" />
                                             </ElSelect>
                                         </div>
                                     </el-row>
@@ -244,10 +214,12 @@ const submitEdit = async () => {
                                 <el-col>
                                     <el-row :gutter="8">
                                         <el-col :span="10">
-                                            <el-input v-model="propName" placeholder="属性名" clearable />
+                                            <el-input v-model="propName" placeholder="属性名" clearable
+                                                @keyup.enter.prevent="focusPropertyValueInput" />
                                         </el-col>
                                         <el-col :span="10">
-                                            <el-input v-model="propValue" placeholder="属性值" clearable />
+                                            <el-input v-model="propValue" placeholder="属性值" clearable
+                                                @keyup.enter.prevent="addProperty" />
                                         </el-col>
                                         <el-col :span="4">
                                             <el-button type="primary" @click="addProperty"
