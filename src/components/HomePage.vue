@@ -67,10 +67,8 @@ const updateTime = () => {
 };
 
 const fetchKeywords = async () => {
-    try {
-        const res = await fetchDataAutoRetry('/api/searchhint/', {}, 'GET') as { keywords: string[] };
-        keywords.value = res.keywords;
-    } catch (e) { console.error(e); }
+    const res = await fetchDataAutoRetry('/api/searchhint/', {}, 'GET') as { keywords: string[] };
+    keywords.value = res.keywords;
 };
 
 const fetchRandomImage = async () => {
@@ -94,33 +92,29 @@ const fetchRandomImage = async () => {
 };
 
 const fetchStats = async () => {
-    try {
-        const res = await fetchDataAutoRetry('/api/statistics/', {}, 'GET') as StatResponse;
-        const sortedTypes = res.types.sort((a, b) =>
-            (b.lastMonthAmount - a.lastMonthAmount) * 1000 +
-            (b.lastYearAmount - a.lastYearAmount) * 10 +
-            (b.totalAmount - a.totalAmount)
-        );
+    const res = await fetchDataAutoRetry('/api/statistics/', {}, 'GET') as StatResponse;
+    const sortedTypes = res.types.sort((a, b) =>
+        (b.lastMonthAmount - a.lastMonthAmount) * 1000 +
+        (b.lastYearAmount - a.lastYearAmount) * 10 +
+        (b.totalAmount - a.totalAmount)
+    );
 
-        stats.value = {
-            total: res.overall.totalAmount,
-            newMonth: res.overall.lastMonthAmount,
-            newYear: res.overall.lastYearAmount,
-            types: sortedTypes
-        };
-    } catch (e) { console.error(e); }
+    stats.value = {
+        total: res.overall.totalAmount,
+        newMonth: res.overall.lastMonthAmount,
+        newYear: res.overall.lastYearAmount,
+        types: sortedTypes
+    };
 };
 
 const fetchLatestDiary = async () => {
-    try {
-        // Reusing search API to get latest
-        const res = await fetchDataAutoRetry("/api/diary/search/", {
-            page: 1, pageSize: 1, orderBy: 'date', order: 'desc'
-        }, "POST") as any;
-        if (res.textList && res.textList.length > 0) {
-            latestDiary.value = res.textList[0];
-        }
-    } catch (e) { console.error(e); }
+    // Reusing search API to get latest
+    const res = await fetchDataAutoRetry("/api/diary/search/", {
+        page: 1, pageSize: 1, orderBy: 'date', order: 'desc'
+    }, "POST") as any;
+    if (res.textList && res.textList.length > 0) {
+        latestDiary.value = res.textList[0];
+    }
 };
 
 const navigateTo = (path: string) => router.push(path);

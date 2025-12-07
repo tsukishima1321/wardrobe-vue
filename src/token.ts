@@ -54,8 +54,10 @@ export async function fetchJsonWithToken(url: string, token: string, para: objec
         response = await fetch(url, {
             method: "POST",
             body: json ? JSON.stringify(para) : para as any,
-            headers: {
+            headers: json ? {
                 'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            } : {
                 'Authorization': 'Bearer ' + token
             }
         });
