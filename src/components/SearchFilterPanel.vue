@@ -9,21 +9,7 @@ export interface PropItem {
     value: string;
 }
 
-export interface SearchParams {
-    searchword: string;
-    sortBy: string;
-    sortOrder: string;
-    dateFrom: string;
-    dateTo: string;
-    searchByTitle: boolean;
-    searchByContent: boolean;
-    page: number;
-    keywords?: Array<string>;
-    properties?: Array<PropItem>;
-    excludedKeywords?: Array<string>;
-    excludedProperties?: Array<PropItem>;
-    propertiesPrecise?: boolean;
-}
+import { type SearchParams } from './Search.vue';
 
 const props = defineProps<{
     modelValue: SearchParams;
@@ -178,7 +164,8 @@ getSavedSearches();
 
             <el-collapse-item title="Properties" name="3">
                 <div style="margin-bottom: 8px;">
-                    <el-switch v-model="localParams.propertiesPrecise" active-text="Precise Match" @change="updateParams" />
+                    <el-switch v-model="localParams.propertiesPrecise" active-text="Precise Match"
+                        @change="updateParams" />
                 </div>
                 <div class="add-property">
                     <el-select v-model="newPropName" filterable allow-create placeholder="Name" size="small"

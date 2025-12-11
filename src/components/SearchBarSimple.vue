@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, defineEmits } from 'vue';
-import { useRouter } from 'vue-router';
-const router = useRouter();
+import { ref } from 'vue';
+
 const emits = defineEmits<{
     updateValue: [keyword: string]
 }>();
