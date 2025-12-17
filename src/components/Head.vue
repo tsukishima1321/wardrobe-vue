@@ -5,6 +5,8 @@ import { Management, Picture, Notebook, Bell, Check, Link } from '@element-plus/
 import { useRouter } from 'vue-router';
 import { onMounted, onUnmounted, ref, computed } from 'vue';
 import { fetchDataAutoRetry, refreshAccessToken } from '@/token';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 interface MessageData {
     id?: number;
@@ -35,6 +37,10 @@ const openMessageDialog = (msg: MessageData) => {
     markAsRead(msg);
     currentMessage.value = msg;
     dialogVisible.value = true;
+};
+
+const renderMarkdown = (text: string) => {
+    return DOMPurify.sanitize(marked.parse(text) as string);
 };
 
 const truncateText = (text: string, maxLength: number = 100) => {
@@ -175,7 +181,7 @@ onUnmounted(() => {
     >
         <div v-if="currentMessage">
             <div class="dialog-content">
-                <p class="dialog-text">{{ currentMessage.text }}</p>
+                <div class="dialog-text" v-html="renderMarkdown(currentMessage.text)"></div>
                 <p class="dialog-time">{{ new Date(currentMessage.timestamp).toLocaleString() }}</p>
             </div>
         </div>
@@ -301,7 +307,37 @@ onUnmounted(() => {
     line-height: 1.6;
     margin-bottom: 15px;
     word-break: break-word;
-    white-space: pre-wrap;
+}
+.dialog-text :deep(p) {
+    margin-bottom: 10px;
+}
+.dialog-text :deep(a) {
+    color: #409EFF;
+    text-decoration: none;
+}
+.dialog-text :deep(a:hover) {
+    text-decoration: underline;
+}
+.dialog-text :deep(ul), .dialog-text :deep(ol) {
+    padding-left: 20px;
+    margin-bottom: 10px;
+}
+.dialog-text :deep(code) {
+    background-color: #f4f4f5;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: monospace;
+}
+.dialog-text :deep(pre) {
+    background-color: #f4f4f5;
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin-bottom: 10px;
+}
+.dialog-text :deep(pre code) {
+    background-color: transparent;
+    padding: 0;
 }
 .dialog-time {
     font-size: 12px;
