@@ -19,6 +19,8 @@ interface MessageData {
 const router = useRouter();
 let messageStream: EventSource | null = null;
 const messages = ref<MessageData[]>([]);
+const dialogVisible = ref(false);
+const currentMessage = ref<MessageData | null>(null);
 
 const unreadCount = computed(() => messages.value.filter(m => m.status === 'unread').length);
 const hasReadMessages = computed(() => messages.value.some(m => m.status === 'read'));
@@ -27,6 +29,19 @@ const handleCommand = (command: string | MessageData) => {
     if (command === 'clear-read') {
         clearReadMessages();
     }
+};
+
+const openMessageDialog = (msg: MessageData) => {
+    markAsRead(msg);
+    currentMessage.value = msg;
+    dialogVisible.value = true;
+};
+
+const truncateText = (text: string, maxLength: number = 100) => {
+    if (text.length > maxLength) {
+        return text.slice(0, maxLength) + '...';
+    }
+    return text;
 };
 
 const markAsRead = async (msg: MessageData) => {
@@ -122,8 +137,14 @@ onUnmounted(() => {
                             :command="{}"
                         >
                             <div class="message-row">
-                                <div class="message-content" :class="{ 'is-read': msg.status === 'read' }">
-                                    <div class="message-text">{{ msg.text }}</div>
+                                <div class="message-content" :class="['msg-level-' + msg.level, { 'is-read': msg.status === 'read' }]">
+                                    <div 
+                                        class="message-text" 
+                                        :class="{ 'is-truncated': msg.text.length > 100 }"
+                                        @click="msg.text.length > 100 ? openMessageDialog(msg) : null"
+                                    >
+                                        {{ truncateText(msg.text) }}
+                                    </div>
                                     <div class="message-time">{{ new Date(msg.timestamp).toLocaleString() }}</div>
                                 </div>
                                 <div class="message-actions">
@@ -144,6 +165,29 @@ onUnmounted(() => {
             </el-dropdown>
         </el-menu-item>
     </el-menu>
+
+    <el-dialog
+        v-model="dialogVisible"
+        title="消息详情"
+        width="800px"
+        align-center
+        append-to-body
+    >
+        <div v-if="currentMessage">
+            <div class="dialog-content">
+                <p class="dialog-text">{{ currentMessage.text }}</p>
+                <p class="dialog-time">{{ new Date(currentMessage.timestamp).toLocaleString() }}</p>
+            </div>
+        </div>
+        <template #footer>
+            <span class="dialog-footer">
+                <el-button @click="dialogVisible = false">关闭</el-button>
+                <el-button type="primary" @click="visitLink(currentMessage); dialogVisible = false" v-if="currentMessage?.link">
+                    前往查看
+                </el-button>
+            </span>
+        </template>
+    </el-dialog>
 </template>
 
 <style scoped>
@@ -187,15 +231,37 @@ onUnmounted(() => {
     display: flex;
     flex-direction: column;
     line-height: 1.4;
-    padding: 5px 0;
+    padding: 5px 0 5px 10px;
     min-width: 200px;
     flex: 1;
     margin-right: 10px;
+    border-left: 3px solid transparent;
+}
+.msg-level-tips {
+    border-left-color: #67C23A;
+}
+.msg-level-info {
+    border-left-color: #909399;
+}
+.msg-level-warning {
+    border-left-color: #E6A23C;
+}
+.msg-level-warning .message-text {
+    color: #E6A23C;
+}
+.is-read {
+    border-left-color: #EBEEF5;
 }
 .message-text {
     font-weight: bold;
     white-space: normal;
     word-break: break-word;
+}
+.is-truncated {
+    cursor: pointer;
+}
+.is-truncated:hover {
+    color: #409EFF;
 }
 .message-time {
     font-size: 12px;
@@ -226,5 +292,20 @@ onUnmounted(() => {
     text-align: center;
     color: #999;
     font-size: 14px;
+}
+.dialog-content {
+    padding: 10px 0;
+}
+.dialog-text {
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 15px;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+.dialog-time {
+    font-size: 12px;
+    color: #999;
+    text-align: right;
 }
 </style>

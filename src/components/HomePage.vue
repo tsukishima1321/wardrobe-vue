@@ -71,6 +71,10 @@ const fetchKeywords = async () => {
     keywords.value = res.keywords;
 };
 
+const generateTips = async () => {
+    const res = await fetchDataAutoRetry('/api/generatetips/', {}, 'GET') as any;
+};
+
 const fetchRandomImage = async () => {
     loadingImg.value = true;
     try {
@@ -121,11 +125,12 @@ const navigateTo = (path: string) => router.push(path);
 
 onMounted(async () => {
     try {
-        await updateTime();
-        await fetchKeywords();
-        await fetchRandomImage();
-        await fetchStats();
-        await fetchLatestDiary();
+        generateTips();
+        updateTime();
+        fetchKeywords();
+        fetchRandomImage();
+        fetchStats();
+        fetchLatestDiary();
     }
     catch (e) {
         router.push('/login');

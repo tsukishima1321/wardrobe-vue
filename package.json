@@ -12,8 +12,10 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
+    "dompurify": "^3.3.1",
     "element-plus": "^2.9.11",
     "lodash": "^4.17.21",
+    "marked": "^17.0.1",
     "masonry-layout": "^4.2.2",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
