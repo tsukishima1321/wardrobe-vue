@@ -213,6 +213,9 @@ const handleRowDoubleClidked = (row: { src: string, status: string }) => {
     window.open(newWindow.href, '_blank');
 }
 
+fetchOcrMissionList();
+fetchBackupList();
+
 </script>
 
 <template>
