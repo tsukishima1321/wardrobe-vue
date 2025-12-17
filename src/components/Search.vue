@@ -47,8 +47,8 @@ const router = useRouter();
 // State
 const searchParams = ref<SearchParams>({
     searchword: (router.currentRoute.value.params.searchword as string) || '',
-    dateFrom: '2000-01-01',
-    dateTo: new Date().toISOString().split('T')[0],
+    dateFrom: new URLSearchParams(window.location.href.slice(window.location.href.indexOf('?'))).get('dateFrom') || '2000-01-01',
+    dateTo: new URLSearchParams(window.location.href.slice(window.location.href.indexOf('?'))).get('dateTo') || new Date().toISOString().split('T')[0],
     searchByTitle: true,
     searchByContent: false,
     sortBy: 'date',

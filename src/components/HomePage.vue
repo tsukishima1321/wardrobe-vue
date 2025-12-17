@@ -136,6 +136,12 @@ onMounted(async () => {
         router.push('/login');
     }
 });
+
+const search = (searchword: string) => {
+    const newWindow = router.resolve({ name: 'search', params: { searchword: searchword } });
+    window.open(newWindow.href, '_blank');
+}
+
 </script>
 
 <template>
@@ -291,7 +297,7 @@ onMounted(async () => {
 
             <!-- 5. Search (Full Width Bottom) -->
             <div class="card search-card">
-                <SearchBarSimple />
+                <SearchBarSimple @updateValue="search" />
             </div>
 
         </div>
