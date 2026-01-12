@@ -125,7 +125,7 @@ const navigateTo = (path: string) => router.push(path);
 
 onMounted(async () => {
     try {
-        generateTips();
+        generateTips().catch(() => { router.push('/login'); });
         updateTime();
         fetchKeywords();
         fetchRandomImage();
