@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { fetchDataAutoRetry } from '../token.ts';
+import { getSearchHints, uploadImage } from '@/api/componentRequests';
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElLoading } from 'element-plus';
@@ -58,7 +58,7 @@ const propertiesHint = ref<string[]>([]);
 
 const updateSearchHint = debounce(async () => {
     try {
-        let data = await fetchDataAutoRetry('/api/searchhint/', {}, 'GET') as { keywords: Array<string>, properties: Array<string> };
+        let data = await getSearchHints();
         keywordsHint.value = data.keywords;
         propertiesHint.value = data.properties;
     } catch (e) {
@@ -169,7 +169,7 @@ const submitCurrent = async () => {
         formData.append('keywords', JSON.stringify(keywords.value));
         formData.append('properties', JSON.stringify(properties.value));
 
-        await fetchDataAutoRetry('/api/image/new/', formData, 'POST', false);
+        await uploadImage(formData);
         ElMessage.success('上传成功');
 
         // Remove current file and move to next

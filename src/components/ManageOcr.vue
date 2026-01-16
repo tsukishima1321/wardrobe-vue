@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { fetchDataAutoRetry } from "@/token";
+import {
+    cleanOcrMissionList as cleanOcrMissionListRequest,
+    executeAllOcrMissions,
+    executeOcrMission,
+    getOcrMissionList,
+    resetOcrMission
+} from "@/api/componentRequests";
 import { useRouter } from "vue-router";
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -10,7 +16,7 @@ const ocrMissionList = ref<Array<{ src: string, status: string }>>([]);
 const currentOcrRow = ref<{ src: string, status: string }>({ src: 'null', status: '' });
 
 const fetchOcrMissionList = () => {
-    fetchDataAutoRetry('/api/ocrmission/get/', {}, 'GET').then((res) => {
+    getOcrMissionList().then((res) => {
         ocrMissionList.value = res as Array<{ src: string, status: string }>;
     }).catch(() => {
         router.push('/login');
@@ -24,7 +30,7 @@ const cleanOcrMissionList = () => {
         type: 'warning',
     }).then(async () => {
         try {
-            await fetchDataAutoRetry('/api/ocrmission/clean/', {}, 'POST');
+            await cleanOcrMissionListRequest();
             ElMessage.success('OCR任务列表清理成功');
             fetchOcrMissionList();
         } catch (error) {
@@ -47,7 +53,7 @@ const resetOcr = () => {
         type: 'warning',
     }).then(async () => {
         try {
-            await fetchDataAutoRetry('/api/ocrmission/reset/', { src: currentOcrRow.value.src }, 'POST');
+            await resetOcrMission(currentOcrRow.value.src);
             ElMessage.success('OCR任务重置成功');
             fetchOcrMissionList();
         } catch (error) {
@@ -74,7 +80,7 @@ const performOcr = () => {
         type: 'warning',
     }).then(async () => {
         try {
-            await fetchDataAutoRetry('/api/ocrmission/execute/', { src: currentOcrRow.value.src }, 'POST');
+            await executeOcrMission(currentOcrRow.value.src);
             ElMessage.success('OCR任务已列队');
             fetchOcrMissionList();
         } catch (error) {
@@ -93,7 +99,7 @@ const performAllOcr = () => {
     }).then(async () => {
         currentOcrRow.value = { src: 'null', status: '' }
         try {
-            await fetchDataAutoRetry('/api/ocrmission/executeall/', {}, 'POST');
+            await executeAllOcrMissions();
             ElMessage.success('所有OCR任务已列队');
             fetchOcrMissionList();
         } catch (error) {

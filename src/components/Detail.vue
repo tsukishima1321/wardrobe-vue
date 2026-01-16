@@ -2,7 +2,19 @@
 import { useRouter } from "vue-router";
 import { ref } from 'vue';
 import { ElMessage, ElLoading, ElInput } from 'element-plus';
-import { fetchDataAutoRetry, GetBlobImgSrc } from '../token.ts';
+import { GetBlobImgSrc } from '../api/token.ts';
+import {
+    createKeyword,
+    createOcrMission,
+    createProperty,
+    deleteKeyword,
+    deleteProperty,
+    getImageDetail,
+    getKeywordList,
+    getPropertyList,
+    setImageInfo,
+    setImageText
+} from '@/api/componentRequests';
 import { ZoomIn, ZoomOut, Refresh, Picture, Edit, Check, Plus, Delete } from '@element-plus/icons-vue';
 
 const router = useRouter();
@@ -48,14 +60,13 @@ interface imgData {
 const loadImg = async () => {
     imgLoading.value = true;
     try {
-        const res = await fetchDataAutoRetry(`/api/image/get/`, { src: imgSrc.value }, 'POST');
-        const r = res as imgData;
+        const r = await getImageDetail(imgSrc.value as string) as imgData;
         imgTitle.value = r.title;
         imgText.value = r.text;
         imgDate.value = r.date;
-        const keywordsData = await fetchDataAutoRetry(`/api/keyword/list/`, { src: imgSrc.value }, 'POST');
+        const keywordsData = await getKeywordList(imgSrc.value as string);
         keywords.value = keywordsData as Array<string>;
-        const propertysData = await fetchDataAutoRetry(`/api/property/list/`, { src: imgSrc.value }, 'POST');
+        const propertysData = await getPropertyList(imgSrc.value as string);
         propertys.value = propertysData as Array<ImageProperty>;
     } catch {
         router.push('/login');
@@ -94,12 +105,12 @@ const submitEdit = async () => {
 
     try {
         const data = {
-            src: imgSrc.value,
+            src: imgSrc.value as string,
             title: imgTitle.value,
             date: imgDate.value,
         };
 
-        await fetchDataAutoRetry(`/api/image/set/`, data, 'POST');
+        await setImageInfo(data);
         enableEdit.value = false;
         ElMessage.success('图片信息保存成功！');
         await loadImg();
@@ -130,11 +141,11 @@ const submitEditText = async () => {
 
     try {
         const data = {
-            src: imgSrc.value,
+            src: imgSrc.value as string,
             text: imgText.value
         };
 
-        await fetchDataAutoRetry(`/api/text/set/`, data, 'POST');
+        await setImageText(data);
         enableEditText.value = false;
         ElMessage.success('图片文本保存成功！');
         await loadImg();
@@ -148,7 +159,7 @@ const submitEditText = async () => {
 }
 
 const newOCRTask = async () => {
-    await fetchDataAutoRetry(`/api/ocrmission/new/`, { src: imgSrc.value }, 'POST').then(() => {
+    await createOcrMission(imgSrc.value as string).then(() => {
         ElMessage.success('OCR任务已创建');
     }).catch(() => {
         ElMessage.error('创建OCR任务失败，请重试');
@@ -170,7 +181,7 @@ const addKeyword = async () => {
     }
     keywordActionPending.value = true;
     try {
-        await fetchDataAutoRetry(`/api/keyword/create/`, { src: imgSrc.value, keyword: keyword }, 'POST');
+        await createKeyword(imgSrc.value as string, keyword);
         newKeyword.value = '';
         ElMessage.success('关键词添加成功');
         await loadImg();
@@ -188,7 +199,7 @@ const removeKeyword = async (keyword: string) => {
     }
     keywordActionPending.value = true;
     try {
-        await fetchDataAutoRetry(`/api/keyword/delete/`, { src: imgSrc.value, keyword: keyword }, 'POST');
+        await deleteKeyword(imgSrc.value as string, keyword);
         ElMessage.success('关键词已删除');
         await loadImg();
     } catch (error) {
@@ -211,7 +222,7 @@ const addProperty = async () => {
     }
     propertyActionPending.value = true;
     try {
-        await fetchDataAutoRetry(`/api/property/create/`, { src: imgSrc.value, name: name, value: value }, 'POST');
+        await createProperty(imgSrc.value as string, name, value);
         newPropertyName.value = '';
         newPropertyValue.value = '';
         ElMessage.success('属性添加成功');
@@ -242,11 +253,7 @@ const removeProperty = async (attr: ImageProperty) => {
     }
     propertyActionPending.value = true;
     try {
-        await fetchDataAutoRetry(`/api/property/delete/`, {
-            src: imgSrc.value,
-            name: attr.name,
-            value: attr.value
-        }, 'POST');
+        await deleteProperty(imgSrc.value as string, attr.name, attr.value);
         ElMessage.success('属性已删除');
         await loadImg();
     } catch (error) {

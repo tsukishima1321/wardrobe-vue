@@ -93,7 +93,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, reactive } from "vue";
-import { fetchDataAutoRetry } from "@/token";
+import { createDiary, deleteDiaryById, searchDiaryOverview, updateDiary } from "@/api/componentRequests";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Edit, Delete } from "@element-plus/icons-vue";
@@ -148,11 +148,7 @@ const diaryForm = ref({
 const searchDiaries = async () => {
   loading.value = true;
   try {
-    const response = (await fetchDataAutoRetry("/api/diary/search/", searchParams.value, "POST")) as {
-      totalPage: number;
-      totalItems: number;
-      textList: DiaryItem[];
-    };
+    const response = await searchDiaryOverview(searchParams.value);
 
     textList.value = response.textList;
     totalPage.value = response.totalPage;
@@ -246,25 +242,17 @@ const saveDiary = async () => {
   saving.value = true;
   try {
     if (isEditing.value) {
-      await fetchDataAutoRetry(
-        "/api/diary/edit/",
-        {
-          id: diaryForm.value.id,
-          date: diaryForm.value.date,
-          text: diaryForm.value.text,
-        },
-        "POST"
-      );
+      await updateDiary({
+        id: diaryForm.value.id,
+        date: diaryForm.value.date,
+        text: diaryForm.value.text,
+      });
       ElMessage.success("Diary updated");
     } else {
-      await fetchDataAutoRetry(
-        "/api/diary/new/",
-        {
-          date: diaryForm.value.date,
-          text: diaryForm.value.text,
-        },
-        "POST"
-      );
+      await createDiary({
+        date: diaryForm.value.date,
+        text: diaryForm.value.text,
+      });
       ElMessage.success("Diary created");
     }
 
@@ -288,11 +276,7 @@ const deleteDiary = (diary: DiaryItem) => {
   })
     .then(async () => {
       try {
-        await fetchDataAutoRetry(
-          "/api/diary/delete/",
-          { id: diary.id },
-          "POST"
-        );
+        await deleteDiaryById(diary.id);
         ElMessage.success("Diary deleted");
         searchDiaries();
       } catch (error) {

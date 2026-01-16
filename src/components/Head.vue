@@ -4,7 +4,8 @@ import favicon from '@/assets/icons/favicon.ico';
 import { Management, Picture, Notebook, Bell, Check, Link } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
 import { onMounted, onUnmounted, ref, computed } from 'vue';
-import { fetchDataAutoRetry, refreshAccessToken } from '@/token';
+import { refreshAccessToken } from '@/api/token';
+import { clearReadMessages as clearReadMessagesRequest, createMessageStream, getMessageList, markMessageRead } from '@/api/componentRequests';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
@@ -53,7 +54,7 @@ const truncateText = (text: string, maxLength: number = 100) => {
 const markAsRead = async (msg: MessageData) => {
     if (msg.status === 'unread') {
         try {
-             await fetchDataAutoRetry('/api/message/read/', { id: msg.id }); 
+             await markMessageRead(msg.id); 
              msg.status = 'read';
         } catch (e) {
             console.error('Failed to mark as read', e);
@@ -69,7 +70,7 @@ const visitLink = (msg: MessageData) => {
 
 const clearReadMessages = async () => {
     try {
-        await fetchDataAutoRetry('/api/message/clear_read/', {});
+        await clearReadMessagesRequest();
         messages.value = messages.value.filter(m => m.status !== 'read');
     } catch (e) {
         console.error('Failed to clear read messages', e);
@@ -77,7 +78,7 @@ const clearReadMessages = async () => {
 };
 
 onMounted(async () => {
-    messages.value = await fetchDataAutoRetry('/api/message/list/', {}) as MessageData[];
+    messages.value = await getMessageList() as MessageData[];
 
     let token = localStorage.getItem('wardrobe-access-token');
     if (!token) {
@@ -96,7 +97,7 @@ onMounted(async () => {
         return;
     }
 
-    messageStream = new EventSource('/api/message/stream/?token=' + token);
+    messageStream = createMessageStream(token);
 
     messageStream.onmessage = (event) => {
         const data = JSON.parse(event.data) as MessageData;

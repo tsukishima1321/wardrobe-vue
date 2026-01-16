@@ -4,7 +4,8 @@ import { useRouter } from 'vue-router';
 import Masonry from 'masonry-layout';
 import { debounce } from 'lodash';
 import { ElMessage, ElMessageBox, ElDrawer } from 'element-plus';
-import { fetchDataAutoRetry, GetBlobImgSrc } from "@/token";
+import { GetBlobImgSrc } from "@/api/token";
+import { deleteImage, getSearchHints, searchImages } from "@/api/componentRequests";
 
 import SearchFilterPanel from './SearchFilterPanel.vue';
 import SearchResultsHeader from './SearchResultsHeader.vue';
@@ -31,7 +32,7 @@ export interface SearchParams {
 interface SearchResponse {
     totalPage: number;
     total: number;
-    hrefList: Array<{ src: string, title: string, date: Date }>;
+    hrefList: Array<{ src: string, title: string, date: string }>;
 }
 
 interface BlobImgItem {
@@ -39,7 +40,7 @@ interface BlobImgItem {
     oriSrc: string;
     title: string;
     checked: boolean;
-    date: Date;
+    date: string;
 }
 
 const router = useRouter();
@@ -120,7 +121,7 @@ onUpdated(() => {
 
 // Methods
 const updateSearchHint = debounce(async () => {
-    let data = await fetchDataAutoRetry('/api/searchhint/', {}, 'GET') as { keywords: Array<string>, properties: Array<string> };
+    let data = await getSearchHints();
     keywordsHint.value = data.keywords;
     propertiesHint.value = data.properties;
 }, 300);
@@ -146,7 +147,7 @@ const updateSearch = debounce(async () => {
     };
 
     try {
-        const data = await fetchDataAutoRetry('/api/search/', para) as SearchResponse;
+        const data = await searchImages(para) as SearchResponse;
         totalPage.value = data.totalPage;
         totalItems.value = data.total;
 
@@ -192,7 +193,7 @@ const handleDelete = async () => {
         });
 
         for (const item of selectedList) {
-            await fetchDataAutoRetry('/api/image/delete/', { src: item }, 'POST');
+            await deleteImage(item);
         }
         ElMessage.success('删除成功');
         updateSearch();

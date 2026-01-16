@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { useRouter } from "vue-router";
 import { ElMessage } from 'element-plus';
+import { loginWithPassword } from '@/api/componentRequests';
 import 'element-plus/dist/index.css';
 
 const router = useRouter()
@@ -11,22 +12,10 @@ const password = ref('');
 
 const handleSubmit = async () => {
     try {
-        const response = await fetch('/api/token/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                username: username.value,
-                password: password.value,
-            }),
+        const data = await loginWithPassword({
+            username: username.value,
+            password: password.value,
         });
-
-        if (!response.ok) {
-            throw new Error('Login failed');
-        }
-
-        const data = await response.json();
         localStorage.setItem('wardrobe-access-token', data.access);
         localStorage.setItem('wardrobe-refresh-token', data.refresh);
         ElMessage.success('登录成功');

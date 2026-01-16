@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { fetchDataAutoRetry, refreshAccessToken } from "@/token";
+import { refreshAccessToken } from "@/api/token";
+import { createBackup, deleteBackup, getBackupDownloadUrl, getBackupList } from "@/api/componentRequests";
 import { useRouter } from "vue-router";
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
@@ -22,8 +23,8 @@ const isBackupLoading = ref(false);
 
 const fetchBackupList = () => {
     isBackupLoading.value = true;
-    fetchDataAutoRetry('/api/backup/list/', {}, 'GET').then((res) => {
-        backupList.value = res as BackupRecord[];
+    getBackupList().then((res) => {
+        backupList.value = res;
     }).catch(() => {
         ElMessage.error('获取备份列表失败');
     }).finally(() => {
@@ -42,7 +43,7 @@ const handleCreateBackup = () => {
             text: '正在创建备份，请稍候...',
             background: 'rgba(0, 0, 0, 0.7)',
         });
-        fetchDataAutoRetry('/api/backup/create/', { comment: value }, 'POST').then(() => {
+        createBackup(value).then(() => {
             loading.close();
             ElMessage.success('备份创建成功');
             fetchBackupList();
@@ -75,7 +76,7 @@ const handleBatchDelete = () => {
         });
         try {
             await Promise.all(selectedRows.value.map(row =>
-                fetchDataAutoRetry('/api/backup/delete/', { timestamp: row.timestamp }, 'POST')
+                deleteBackup(row.timestamp)
             ));
             ElMessage.success('批量删除成功');
             fetchBackupList();
@@ -109,7 +110,7 @@ const handleDownloadBackup = async (row: BackupRecord) => {
         return;
     }
 
-    const url = `/api/backup/download/?timestamp=${row.timestamp}&token=${token}`;
+    const url = getBackupDownloadUrl(row.timestamp, token);
     window.open(url, '_blank');
 }
 

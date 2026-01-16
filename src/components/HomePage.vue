@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { fetchDataAutoRetry, GetBlobImgSrc } from '../token';
+import { GetBlobImgSrc } from '../api/token';
+import { generateTips as requestGenerateTips, getRandomImageInfo, getSearchHints, getStatistics, searchDiary } from '@/api/componentRequests';
 import SearchBarSimple from './SearchBarSimple.vue';
 import {
     Picture,
@@ -67,23 +68,19 @@ const updateTime = () => {
 };
 
 const fetchKeywords = async () => {
-    const res = await fetchDataAutoRetry('/api/searchhint/', {}, 'GET') as { keywords: string[] };
+    const res = await getSearchHints();
     keywords.value = res.keywords;
-};
-
-const generateTips = async () => {
-    const res = await fetchDataAutoRetry('/api/generatetips/', {}, 'GET') as any;
 };
 
 const fetchRandomImage = async () => {
     loadingImg.value = true;
     try {
         // Using existing API
-        const url = selectedKeyword.value && selectedKeyword.value !== '不限'
-            ? `/api/random/?keyword=${selectedKeyword.value}`
-            : '/api/random/';
+        const keyword = selectedKeyword.value && selectedKeyword.value !== '不限'
+            ? selectedKeyword.value
+            : undefined;
 
-        const res = await fetchDataAutoRetry(url, {}, 'GET') as ImgInfo;
+        const res = await getRandomImageInfo(keyword) as ImgInfo;
         const blobSrc = await GetBlobImgSrc("/imagebed/thumbnails/" + res.src);
         featuredImg.value = blobSrc;
         featuredImgTitle.value = res.title;
@@ -96,7 +93,7 @@ const fetchRandomImage = async () => {
 };
 
 const fetchStats = async () => {
-    const res = await fetchDataAutoRetry('/api/statistics/', {}, 'GET') as StatResponse;
+    const res = await getStatistics() as StatResponse;
     const sortedTypes = res.types.sort((a, b) =>
         (b.lastMonthAmount - a.lastMonthAmount) * 1000 +
         (b.lastYearAmount - a.lastYearAmount) * 10 +
@@ -113,9 +110,9 @@ const fetchStats = async () => {
 
 const fetchLatestDiary = async () => {
     // Reusing search API to get latest
-    const res = await fetchDataAutoRetry("/api/diary/search/", {
+    const res = await searchDiary({
         page: 1, pageSize: 1, orderBy: 'date', order: 'desc'
-    }, "POST") as any;
+    }) as any;
     if (res.textList && res.textList.length > 0) {
         latestDiary.value = res.textList[0];
     }
@@ -125,7 +122,7 @@ const navigateTo = (path: string) => router.push(path);
 
 onMounted(async () => {
     try {
-        generateTips().catch(() => { router.push('/login'); });
+        requestGenerateTips().catch(() => { router.push('/login'); });
         updateTime();
         fetchKeywords();
         fetchRandomImage();

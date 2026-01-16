@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue';
 import { ElCollapse, ElCollapseItem, ElDatePicker, ElCheckbox, ElSelect, ElOption, ElInput, ElButton, ElTag, ElIcon, ElSwitch } from 'element-plus';
 import { Delete, Plus } from '@element-plus/icons-vue';
-import { fetchDataAutoRetry } from '@/token';
+import { createSavedSearch, deleteSavedSearch as deleteSavedSearchRequest, getSavedSearch, getSavedSearchList } from '@/api/componentRequests';
 
 export interface PropItem {
     name: string;
@@ -83,19 +83,19 @@ const newSavedSearchName = ref('');
 
 const getSavedSearches = async () => {
     console.log('Fetch saved searches from backend');
-    savedSearches.value = await fetchDataAutoRetry('/api/savedsearch/list/', {}, 'GET') as Array<{ name: string; id: number }>;
+    savedSearches.value = await getSavedSearchList();
 }
 
 const loadSavedSearch = async (id: number) => {
     console.log('Load saved search', id);
-    const saved = await fetchDataAutoRetry(`/api/savedsearch/get/`, { id: id }) as SearchParams;
+    const saved = await getSavedSearch(id) as SearchParams;
     localParams.value = saved;
     updateParams();
 };
 
 const postSavedSearch = async (name: string, params: SearchParams) => {
     console.log('Save current search as', name, params);
-    const response = await fetchDataAutoRetry('/api/savedsearch/create/', { name: name, searchparams: params }) as { id: number };
+    const response = await createSavedSearch(name, params);
     return response.id;
 }
 
@@ -108,7 +108,7 @@ const handleSaveSearch = async () => {
 
 const deleteSavedSearch = (id: number) => {
     console.log('Delete saved search', id);
-    const response = fetchDataAutoRetry(`/api/savedsearch/delete/`, { id: id });
+    const response = deleteSavedSearchRequest(id);
     const index = savedSearches.value.findIndex(s => s.id === id);
     if (index !== -1) {
         savedSearches.value.splice(index, 1);
