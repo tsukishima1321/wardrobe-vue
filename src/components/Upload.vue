@@ -1,19 +1,104 @@
 <script setup lang="ts">
-import { getSearchHints, uploadImage } from '@/api/componentRequests';
-import { ref, computed } from 'vue';
+import {
+    getSearchHints,
+    uploadImage,
+    listUnprocessedImages,
+    reprocessImage,
+    setImageInfo,
+    createKeyword,
+    createProperty,
+    deleteKeyword,
+    deleteProperty,
+    getImageDetail,
+    executeOcrMission,
+    newOcrMission
+} from '@/api/componentRequests';
+import { GetBlobImgSrc } from '@/api/token';
+import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage, ElLoading } from 'element-plus';
+import { ElMessage, ElLoading, ElMessageBox, ElInput } from 'element-plus';
 import type { UploadFile } from 'element-plus';
 import { debounce } from 'lodash';
-import { Plus, Delete, UploadFilled, Picture, ZoomIn, ZoomOut, Refresh } from '@element-plus/icons-vue';
+import { Plus, Delete, UploadFilled, Picture, ZoomIn, ZoomOut, Refresh, Connection, List } from '@element-plus/icons-vue';
 
 const router = useRouter();
 
+// Mode Management
+type UploadMode = 'normal' | 'quick' | 'reprocess';
+const mode = ref<UploadMode>('normal');
+const isReprocessMode = computed(() => mode.value === 'reprocess');
+const isQuickMode = computed(() => mode.value === 'quick');
+
+const switchMode = async (newMode: UploadMode) => {
+    if (mode.value === newMode) return;
+
+    if (fileQueue.value.length > 0) {
+        try {
+            await ElMessageBox.confirm('切换模式将清空当前队列，是否继续？', '提示', {
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                type: 'warning'
+            });
+        } catch {
+            return;
+        }
+    }
+
+    fileQueue.value = [];
+    mode.value = newMode;
+    currentIndex.value = 0;
+
+    if (newMode === 'reprocess') {
+        loadUnprocessedImages();
+    }
+};
+
+const loadUnprocessedImages = async () => {
+    const loading = ElLoading.service({ text: '加载待处理图片...' });
+    try {
+        const list = await listUnprocessedImages();
+        fileQueue.value = list.map((src, index) => ({
+            uid: -index - 1,
+            previewUrl: '', // Will load asynchronously
+            src: src
+        }));
+
+        if (fileQueue.value.length === 0) {
+            ElMessage.info('暂无待处理图片');
+        } else {
+            // Load the first one immediately
+            selectFile(0);
+        }
+
+        // Lazy load previews
+        for (const item of fileQueue.value) {
+            try {
+                if (item.src) {
+                    const blobUrl = await GetBlobImgSrc("/imagebed/" + item.src);
+                    item.previewUrl = blobUrl;
+                }
+            } catch (e) {
+                console.error(`Failed to load preview for ${item.src}`, e);
+            }
+        }
+    } catch (e) {
+        console.error(e);
+        ElMessage.error('加载列表失败');
+    } finally {
+        loading.close();
+    }
+};
+
 // Queue Management
 interface QueueItem {
-    file: File;
+    file?: File;
     uid: number;
     previewUrl: string;
+    src?: string;
+    originalData?: {
+        keywords: string[];
+        properties: { name: string; value: string }[];
+    };
 }
 
 const fileQueue = ref<QueueItem[]>([]);
@@ -95,7 +180,43 @@ const handleSelectKeyword = (item: any) => {
 };
 
 // File Operations
-const handleFileChange = (uploadFile: UploadFile) => {
+const handleFileChange = async (uploadFile: UploadFile) => {
+    if (!uploadFile.raw) return;
+
+    if (isQuickMode.value) {
+        // Quick Mode: Upload Immediately
+        const loadingInstance = ElLoading.service({
+            lock: true,
+            text: `快速上传中: ${uploadFile.name}`,
+            background: 'rgba(0, 0, 0, 0.7)',
+        });
+
+        try {
+            const formData = new FormData();
+            formData.append('image', uploadFile.raw);
+            formData.append('title', uploadFile.name); // Just filename
+            formData.append('date', new Date().toISOString().split('T')[0]); // Today
+            formData.append('doOCR', 'false');
+            formData.append('keywords', '[]');
+            formData.append('properties', '[]');
+            formData.append('unprocessed', 'true');
+
+            await uploadImage(formData);
+            ElMessage.success(`上传成功: ${uploadFile.name}`);
+        } catch (error) {
+            console.error(error);
+            ElMessage.error(`上传失败: ${uploadFile.name}`);
+        } finally {
+            loadingInstance.close();
+        }
+        return;
+    }
+
+    if (isReprocessMode.value) {
+        ElMessage.warning('补全模式下无法上传新图片');
+        return;
+    }
+
     if (uploadFile.raw) {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -116,18 +237,41 @@ const handleFileChange = (uploadFile: UploadFile) => {
     }
 };
 
-const initFormForFile = (item: QueueItem) => {
-    const name = item.file.name;
-    imgTitle.value = name.substring(0, name.lastIndexOf('.')) || name;
-    // Keep Date and OCR settings as they are likely common
+const initFormForFile = async (item: QueueItem) => {
     keywords.value = [];
     properties.value = [];
+
+    if (isReprocessMode.value && item.src) {
+        // Load existing data
+        const loading = ElLoading.service({ target: '.details-panel', text: '加载详情...' });
+        try {
+            const data = await getImageDetail(item.src);
+            imgTitle.value = data.title || '';
+            imgDate.value = data.date || new Date().toISOString().split('T')[0];
+            keywords.value = data.keywords ? [...data.keywords] : [];
+            properties.value = data.propertys ? data.propertys.map(p => ({ name: p.name, value: p.value })) : [];
+
+            item.originalData = {
+                keywords: [...keywords.value],
+                properties: [...properties.value]
+            };
+        } catch (e) {
+            console.error(e);
+            ElMessage.error('获取详情失败');
+        } finally {
+            loading.close();
+        }
+    } else if (item.file) {
+        const name = item.file.name;
+        imgTitle.value = name.substring(0, name.lastIndexOf('.')) || name;
+        imgDate.value = new Date().toISOString().split('T')[0];
+    }
 };
 
-const selectFile = (index: number) => {
+const selectFile = async (index: number) => {
     if (index >= 0 && index < fileQueue.value.length) {
         currentIndex.value = index;
-        initFormForFile(fileQueue.value[index]);
+        await initFormForFile(fileQueue.value[index]);
     }
 };
 
@@ -149,10 +293,19 @@ const removeFile = (index: number) => {
 
 const submitCurrent = async () => {
     if (!currentFile.value) return;
+
+    // Reprocess Mode Logic
+    if (isReprocessMode.value) {
+        await submitReprocess();
+        return;
+    }
+
     if (!imgTitle.value.trim()) {
         ElMessage.warning('请输入标题');
         return;
     }
+
+    if (!currentFile.value.file) return;
 
     const loadingInstance = ElLoading.service({
         lock: true,
@@ -183,6 +336,76 @@ const submitCurrent = async () => {
     }
 };
 
+const submitReprocess = async () => {
+    const item = currentFile.value;
+    if (!item?.src) return;
+
+    const loadingInstance = ElLoading.service({
+        lock: true,
+        text: '更新中...',
+        background: 'rgba(0, 0, 0, 0.7)',
+    });
+
+    try {
+        // 1. Set Basic Info
+        await setImageInfo({
+            src: item.src,
+            title: imgTitle.value,
+            date: imgDate.value
+        });
+
+        // 2. Sync Keywords
+        const originalKeywords = item.originalData?.keywords || [];
+        const currentKeywords = keywords.value;
+
+        const toAddK = currentKeywords.filter(k => !originalKeywords.includes(k));
+        const toDeleteK = originalKeywords.filter(k => !currentKeywords.includes(k));
+
+        for (const k of toAddK) {
+            try { await createKeyword(item.src, k); } catch { }
+        }
+        for (const k of toDeleteK) {
+            try { await deleteKeyword(item.src, k); } catch { }
+        }
+
+        // 3. Sync Properties
+        const originalProps = item.originalData?.properties || [];
+        const currentProps = properties.value;
+
+        // Use JSON stringify for simple object comparison
+        const opSet = new Set(originalProps.map(p => JSON.stringify(p)));
+        const cpSet = new Set(currentProps.map(p => JSON.stringify(p)));
+
+        const toAddP = currentProps.filter(p => !opSet.has(JSON.stringify(p)));
+        const toDeleteP = originalProps.filter(p => !cpSet.has(JSON.stringify(p)));
+
+        for (const p of toAddP) {
+            try { await createProperty(item.src, p.name, p.value); } catch { }
+        }
+        for (const p of toDeleteP) {
+            try { await deleteProperty(item.src, p.name, p.value); } catch { }
+        }
+
+        if (isOCR.value) {
+            await newOcrMission(item.src);
+            await executeOcrMission(item.src);
+        }
+
+        // 4. Reprocess / Confirm
+        await reprocessImage(item.src);
+
+        ElMessage.success('处理完成');
+        removeFile(currentIndex.value);
+
+    } catch (error) {
+        console.error(error);
+        ElMessage.error('提交失败');
+    } finally {
+        loadingInstance.close();
+    }
+};
+
+
 // Keyword & Property Logic
 const addKeyword = () => {
     const val = newKeyword.value.trim();
@@ -204,10 +427,18 @@ const addProperty = () => {
         newPropertyName.value = '';
         newPropertyValue.value = '';
     }
+    propertyNameInput.value?.focus();
 };
 
 const removeProperty = (index: number) => {
     properties.value.splice(index, 1);
+};
+
+const propertyValueInput = ref<InstanceType<typeof ElInput> | null>(null);
+const propertyNameInput = ref<InstanceType<typeof ElInput> | null>(null);
+
+const focusPropertyValueInput = () => {
+    propertyValueInput.value?.focus();
 };
 
 </script>
@@ -219,11 +450,17 @@ const removeProperty = (index: number) => {
             <!-- Empty State / Drop Zone -->
             <div v-if="fileQueue.length === 0" class="empty-state">
                 <el-upload class="upload-drop-zone" drag multiple :auto-upload="false" :show-file-list="false"
-                    :on-change="handleFileChange" accept="image/*">
+                    :on-change="handleFileChange" accept="image/*" :disabled="isReprocessMode">
                     <el-icon class="el-icon--upload">
                         <upload-filled />
                     </el-icon>
-                    <div class="el-upload__text">
+                    <div class="el-upload__text" v-if="isQuickMode">
+                        <span style="color: #E6A23C">快速模式:</span> 直接上传图片，稍后补全信息
+                    </div>
+                    <div class="el-upload__text" v-else-if="isReprocessMode">
+                        请点击右侧加载待处理图片
+                    </div>
+                    <div class="el-upload__text" v-else>
                         拖拽图片到此处 或 <em>点击上传</em>
                     </div>
                 </el-upload>
@@ -232,7 +469,8 @@ const removeProperty = (index: number) => {
             <!-- Image Preview -->
             <div v-else class="image-stage">
                 <div class="image-content" :style="{ width: `${zoomLevel * 100}%` }">
-                    <el-image :src="currentFile.previewUrl" :preview-src-list="[currentFile.previewUrl]" class="main-image" />
+                    <el-image :src="currentFile.previewUrl" :preview-src-list="[currentFile.previewUrl]"
+                        class="main-image" />
                 </div>
             </div>
 
@@ -241,7 +479,7 @@ const removeProperty = (index: number) => {
                 <el-button-group>
                     <el-button :icon="ZoomOut" circle @click="zoomOut" :disabled="zoomLevel <= minZoom" />
                     <el-button @click="resetZoom" :disabled="zoomLevel === 1">{{ Math.round(zoomLevel * 100)
-                        }}%</el-button>
+                    }}%</el-button>
                     <el-button :icon="ZoomIn" circle @click="zoomIn" :disabled="zoomLevel >= maxZoom" />
                 </el-button-group>
             </div>
@@ -260,7 +498,7 @@ const removeProperty = (index: number) => {
                     </div>
                     <!-- Add More -->
                     <el-upload class="thumb-uploader" multiple :auto-upload="false" :show-file-list="false"
-                        :on-change="handleFileChange" accept="image/*">
+                        :on-change="handleFileChange" accept="image/*" v-if="!isReprocessMode">
                         <div class="add-thumb">
                             <el-icon>
                                 <Plus />
@@ -273,20 +511,29 @@ const removeProperty = (index: number) => {
 
         <!-- Right: Details Panel -->
         <div class="details-panel">
+            <div class="mode-switch-wrapper">
+                <el-radio-group v-model="mode" size="small" @change="switchMode">
+                    <el-radio-button label="normal">普通上传</el-radio-button>
+                    <el-radio-button label="quick">快速上传</el-radio-button>
+                    <el-radio-button label="reprocess">补全信息</el-radio-button>
+                </el-radio-group>
+            </div>
+
             <div v-if="fileQueue.length === 0" class="panel-empty">
-                <el-empty description="请选择图片开始上传" />
+                <el-empty description="列表为空" />
+                <el-button v-if="isReprocessMode" type="primary" @click="loadUnprocessedImages">刷新列表</el-button>
             </div>
             <div v-else class="panel-content">
                 <!-- Header -->
                 <div class="section basic-info">
                     <div class="section-header">
                         <div class="header-left">
-                            <span class="queue-info">待处理: {{ fileQueue.length }}</span>
+                            <span class="queue-info">剩余: {{ fileQueue.length }}</span>
                         </div>
                         <el-button type="primary" @click="submitCurrent">
                             <el-icon>
                                 <UploadFilled />
-                            </el-icon> 提交当前
+                            </el-icon> {{ isReprocessMode ? '确认完成' : '提交当前' }}
                         </el-button>
                     </div>
 
@@ -354,9 +601,9 @@ const removeProperty = (index: number) => {
                         </div>
                     </div>
                     <div class="add-prop-row">
-                        <el-autocomplete v-model="newPropertyName" :fetch-suggestions="querySearchProps"
-                            placeholder="属性名" style="width: 40%" />
-                        <el-input v-model="newPropertyValue" placeholder="属性值" style="flex: 1"
+                        <el-autocomplete ref="propertyNameInput" v-model="newPropertyName" :fetch-suggestions="querySearchProps"
+                            placeholder="属性名" style="width: 40%" @keyup.enter.prevent="focusPropertyValueInput" />
+                        <el-input ref="propertyValueInput" v-model="newPropertyValue" placeholder="属性值" style="flex: 1"
                             @keyup.enter="addProperty" />
                         <el-button @click="addProperty">添加</el-button>
                     </div>
@@ -376,7 +623,6 @@ const removeProperty = (index: number) => {
     background-color: #fff;
 }
 
-/* Left: Image Viewer */
 .image-viewer {
     flex: 1;
     background-color: #f5f5f7;
@@ -384,6 +630,8 @@ const removeProperty = (index: number) => {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    height: 100%;
+    /* Fix height for reliable scrolling */
 }
 
 .empty-state {
@@ -391,6 +639,7 @@ const removeProperty = (index: number) => {
     display: flex;
     align-items: center;
     justify-content: center;
+    height: 100%;
 }
 
 .upload-drop-zone {
@@ -405,7 +654,7 @@ const removeProperty = (index: number) => {
     justify-content: center;
     overflow: auto;
     padding: 20px;
-    padding-bottom: 100px;
+    padding-bottom: 120px;
     /* Space for thumbnail strip */
 }
 
@@ -521,7 +770,13 @@ const removeProperty = (index: number) => {
     color: #409eff;
 }
 
-/* Right: Details Panel */
+.mode-switch-wrapper {
+    padding: 12px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: center;
+}
+
 .details-panel {
     width: 400px;
     background: #fff;
@@ -534,6 +789,8 @@ const removeProperty = (index: number) => {
 .panel-empty {
     flex: 1;
     display: flex;
+    flex-direction: column;
+    /* Allow button to stack */
     align-items: center;
     justify-content: center;
 }
