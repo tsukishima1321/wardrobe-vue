@@ -433,9 +433,9 @@ loadImg();
 /* Reset & Layout */
 .layout-container {
     display: flex;
-    height: 90vh;
+    margin: 0 auto;
+    height: calc(100vh - 60px);
     width: 100vw;
-    overflow: hidden;
     background-color: #fff;
 }
 

@@ -294,7 +294,8 @@ onMounted(() => {
 
 <style scoped>
 .diary-overview {
-  height: 100vh;
+  margin: 0 auto;
+  height: calc(100vh - 60px);
   display: flex;
   flex-direction: column;
   background-color: #f5f7fa;
@@ -324,15 +325,14 @@ onMounted(() => {
   flex-direction: column;
   min-width: 0;
   padding: 20px;
+  overflow-y: auto;
   /* Prevent flex item from overflowing */
   position: relative;
 }
 
 .results-area {
   flex: 1;
-  overflow-y: auto;
   padding: 20px;
-  scroll-behavior: smooth;
 }
 
 .diary-list {

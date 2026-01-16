@@ -241,6 +241,10 @@ export const getOcrMissionList = async (): Promise<OcrMissionItem[]> => {
     return fetchDataAutoRetry('/api/ocrmission/get/', {}, 'GET') as Promise<OcrMissionItem[]>;
 };
 
+export const newOcrMission = async (src: string): Promise<void> => {
+    await fetchDataAutoRetry('/api/ocrmission/new/', { src }, 'POST');
+}
+
 export const cleanOcrMissionList = async (): Promise<void> => {
     await fetchDataAutoRetry('/api/ocrmission/clean/', {}, 'POST');
 };
@@ -299,6 +303,14 @@ export const createSavedSearch = async (name: string, params: SavedSearchParams)
 
 export const deleteSavedSearch = async (id: number): Promise<void> => {
     await fetchDataAutoRetry('/api/savedsearch/delete/', { id }, 'POST');
+};
+
+export const listUnprocessedImages = async (): Promise<string[]> => {
+    return fetchDataAutoRetry('/api/image/listblanks/', {}, 'POST') as Promise<string[]>;
+};
+
+export const reprocessImage = async (src: string): Promise<void> => {
+    await fetchDataAutoRetry('/api/image/reprocess/', { src }, 'POST');
 };
 
 export const loginWithPassword = async (payload: LoginRequest): Promise<TokenResponse> => {

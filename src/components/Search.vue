@@ -337,7 +337,8 @@ onMounted(() => {
 <style scoped>
 .search-page {
     display: flex;
-    height: 100%;
+    margin: 0 auto;
+    height: calc(100vh - 60px);
     background-color: #f0f2f5;
 }
 

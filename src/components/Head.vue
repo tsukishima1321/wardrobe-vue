@@ -202,6 +202,9 @@ onUnmounted(() => {
     width: 100%;
     margin: 0;
 }
+.el-menu-item {
+    padding: 5px;
+}
 
 .el-menu--horizontal {
     width: 100%;

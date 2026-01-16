@@ -75,12 +75,13 @@ const toggleMenuCollapse = () => {
 }
 
 .el-menu {
-    height: 95vh;
+    height: 100%;
     border-right: none;
 }
 
 .manage {
-    height: 95vh;
+    margin: 0 auto;
+    height: calc(100vh - 60px);
     background-color: #f0f2f5;
 }
 </style>
