@@ -13,7 +13,7 @@ import {
     executeOcrMission,
     newOcrMission
 } from '@/api/componentRequests';
-import { GetBlobImgSrc } from '@/api/token';
+import { GetBlobImgSrc, ResponseWithError } from '@/api/token';
 import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElLoading, ElMessageBox, ElInput } from 'element-plus';
@@ -201,11 +201,19 @@ const handleFileChange = async (uploadFile: UploadFile) => {
             formData.append('properties', '[]');
             formData.append('unprocessed', 'true');
 
-            await uploadImage(formData);
-            ElMessage.success(`上传成功: ${uploadFile.name}`);
-        } catch (error) {
-            console.error(error);
-            ElMessage.error(`上传失败: ${uploadFile.name}`);
+            const res = await uploadImage(formData);
+            if (res.message) {
+                ElMessage.warning(res.md5 + ': ' + res.message);
+            } else {
+                ElMessage.success(`上传成功: ${uploadFile.name}， MD5: ${res.md5}`);
+            }
+        } catch (error: unknown) {
+            if (error instanceof ResponseWithError) {
+                ElMessage.warning(`上传失败: ${uploadFile.name}, ${error.data?.md5}, ${error.data?.message || '未知错误'}`);
+            } else {
+                ElMessage.error(`上传失败: ${uploadFile.name}, 未知错误。`);
+            }
+
         } finally {
             loadingInstance.close();
         }
@@ -328,12 +336,16 @@ const submitCurrent = async () => {
         // Remove current file and move to next
         removeFile(currentIndex.value);
 
-    } catch (error) {
-        console.error(error);
-        ElMessage.error('上传失败');
-    } finally {
-        loadingInstance.close();
-    }
+    } catch (error: unknown) {
+            if (error instanceof ResponseWithError) {
+                ElMessage.warning(`上传失败: ${currentFile.value.file.name}, ${error.data?.md5}, ${error.data?.message || '未知错误'}`);
+            } else {
+                ElMessage.error(`上传失败: ${currentFile.value.file.name}, 未知错误。`);
+            }
+
+        } finally {
+            loadingInstance.close();
+        }
 };
 
 const submitReprocess = async () => {
@@ -601,8 +613,9 @@ const focusPropertyValueInput = () => {
                         </div>
                     </div>
                     <div class="add-prop-row">
-                        <el-autocomplete ref="propertyNameInput" v-model="newPropertyName" :fetch-suggestions="querySearchProps"
-                            placeholder="属性名" style="width: 40%" @keyup.enter.prevent="focusPropertyValueInput" />
+                        <el-autocomplete ref="propertyNameInput" v-model="newPropertyName"
+                            :fetch-suggestions="querySearchProps" placeholder="属性名" style="width: 40%"
+                            @keyup.enter.prevent="focusPropertyValueInput" />
                         <el-input ref="propertyValueInput" v-model="newPropertyValue" placeholder="属性值" style="flex: 1"
                             @keyup.enter="addProperty" />
                         <el-button @click="addProperty">添加</el-button>

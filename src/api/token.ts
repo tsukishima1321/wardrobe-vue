@@ -3,6 +3,16 @@ export interface TokenResponse {
     refresh: string;
 }
 
+export class ResponseWithError extends Error {
+    public data: any;
+
+    constructor(message: string, data: any) {
+        super(message);
+        this.data = data;
+        Object.setPrototypeOf(this, ResponseWithError.prototype);
+    }
+}
+
 export async function GetBlobImgSrc(url: string): Promise<string> {
     const token = localStorage.getItem('wardrobe-access-token') || 'default-token';
     try {
@@ -20,17 +30,17 @@ export async function GetBlobImgSrc(url: string): Promise<string> {
                 const refreshToken = localStorage.getItem('wardrobe-refresh-token');
                 if (!refreshToken) {
                     console.error('Refresh token not found!');
-                    throw new Error('Refresh token failed');
+                    throw new ResponseWithError('Refresh token failed', null);
                 }
                 try {
                     const res = await refreshAccessToken(refreshToken);
                     if (!res) {
                         console.error('Refresh token failed');
-                        throw new Error('Refresh token failed');
+                        throw new ResponseWithError('Refresh token failed', null);
                     }
                 } catch (error) {
                     console.error('Refresh token failed:', error);
-                    throw new Error('Refresh token failed');
+                    throw new ResponseWithError('Refresh token failed', null);
                 }
                 // 重新加载图片
                 return GetBlobImgSrc(url);
@@ -75,7 +85,7 @@ export async function fetchJsonWithToken(url: string, token: string, para: objec
         if (response.status === 401) {
             return { message: 'not authorized' };
         }
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new ResponseWithError('Network response was not ok', await response.json());
     }
 
     return response.json();
@@ -134,6 +144,9 @@ export async function fetchDataAutoRetry(url: string, para: object, method = 'PO
         }
     } catch (error) {
         console.error('Error fetching data:', error);
+        if (error instanceof ResponseWithError) {
+            throw error;
+        }
         throw new Error('Error fetching data');
     }
     return data;

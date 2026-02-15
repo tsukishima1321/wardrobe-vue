@@ -144,6 +144,11 @@ export interface LoginRequest {
     password: string;
 }
 
+export interface ImageUploadResponse {
+    md5: string;
+    message?: string;
+}
+
 export const getBackupList = async (): Promise<BackupRecord[]> => {
     return fetchDataAutoRetry('/api/backup/list/', {}, 'GET') as Promise<BackupRecord[]>;
 };
@@ -285,8 +290,8 @@ export const deleteImage = async (src: string): Promise<void> => {
     await fetchDataAutoRetry('/api/image/delete/', { src }, 'POST');
 };
 
-export const uploadImage = async (formData: FormData): Promise<void> => {
-    await fetchDataAutoRetry('/api/image/new/', formData, 'POST', false);
+export const uploadImage = async (formData: FormData): Promise<ImageUploadResponse> => {
+    return fetchDataAutoRetry('/api/image/new/', formData, 'POST', false) as Promise<ImageUploadResponse>;
 };
 
 export const getSavedSearchList = async (): Promise<SavedSearchItem[]> => {
