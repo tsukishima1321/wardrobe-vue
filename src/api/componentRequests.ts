@@ -149,6 +149,11 @@ export interface ImageUploadResponse {
     message?: string;
 }
 
+export interface ImagePredictResponse {
+    keywords: string[];
+    properties: Array<{ name: string; value: string }>;
+}
+
 export const getBackupList = async (): Promise<BackupRecord[]> => {
     return fetchDataAutoRetry('/api/backup/list/', {}, 'GET') as Promise<BackupRecord[]>;
 };
@@ -316,6 +321,10 @@ export const listUnprocessedImages = async (): Promise<string[]> => {
 
 export const reprocessImage = async (src: string): Promise<void> => {
     await fetchDataAutoRetry('/api/image/reprocess/', { src }, 'POST');
+};
+
+export const predictImage = async (description: string): Promise<ImagePredictResponse> => {
+    return fetchDataAutoRetry('/api/metadata/predict/', { description }, 'POST') as Promise<ImagePredictResponse>;
 };
 
 export const loginWithPassword = async (payload: LoginRequest): Promise<TokenResponse> => {

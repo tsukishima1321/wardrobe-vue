@@ -11,7 +11,8 @@ import {
     deleteProperty,
     getImageDetail,
     executeOcrMission,
-    newOcrMission
+    newOcrMission,
+    predictImage
 } from '@/api/componentRequests';
 import { GetBlobImgSrc, ResponseWithError } from '@/api/token';
 import { ref, computed, watch } from 'vue';
@@ -299,6 +300,54 @@ const removeFile = (index: number) => {
     }
 };
 
+const handlePredict = async () => {
+    if (!imgTitle.value.trim()) return;
+
+    // Only predict if keywords/properties are empty? Or always merge?
+    // User asked to "automatically fill", usually implies assist.
+    // Let's merge.
+
+    const loadingInstance = ElLoading.service({
+        target: '.details-panel',
+        text: 'AI 预测中...',
+        background: 'rgba(255, 255, 255, 0.7)',
+    });
+
+    try {
+        const res = await predictImage(imgTitle.value);
+        
+        if (res.keywords) {
+            res.keywords.forEach(k => {
+                if (!keywords.value.includes(k)) {
+                    keywords.value.push(k);
+                }
+            });
+        }
+
+        if (res.properties) {
+            res.properties.forEach(p => {
+                // Check for duplicate name/value pair
+                const exists = properties.value.some(
+                    curr => curr.name === p.name && curr.value === p.value
+                );
+                if (!exists) {
+                    properties.value.push({ name: p.name, value: p.value });
+                }
+            });
+        }
+        
+        if ((res.keywords && res.keywords.length > 0) || (res.properties && res.properties.length > 0)) {
+            ElMessage.success('已自动填充预测信息');
+        }
+        
+    } catch (e) {
+        console.error('Predict failed', e);
+        // Don't disturb user too much if auto-fetch fails
+    } finally {
+        loadingInstance.close();
+    }
+};
+
 const submitCurrent = async () => {
     if (!currentFile.value) return;
 
@@ -551,7 +600,7 @@ const focusPropertyValueInput = () => {
 
                     <el-form label-position="top" size="default">
                         <el-form-item label="标题">
-                            <el-input v-model="imgTitle" placeholder="图片标题" />
+                            <el-input v-model="imgTitle" placeholder="图片标题" @blur="handlePredict" />
                         </el-form-item>
                         <el-row :gutter="10">
                             <el-col :span="12">
