@@ -2,7 +2,7 @@
 
 import favicon from '@/assets/icons/favicon.ico';
 import { Management, Picture, Notebook, Bell, Check, Link } from '@element-plus/icons-vue';
-import { useRouter } from 'vue-router';
+import { useRouter, onBeforeRouteUpdate } from 'vue-router';
 import { onMounted, onUnmounted, ref, computed } from 'vue';
 import { refreshAccessToken } from '@/api/token';
 import { clearReadMessages as clearReadMessagesRequest, createMessageStream, getMessageList, markMessageRead } from '@/api/componentRequests';
@@ -54,8 +54,8 @@ const truncateText = (text: string, maxLength: number = 100) => {
 const markAsRead = async (msg: MessageData) => {
     if (msg.status === 'unread') {
         try {
-             await markMessageRead(msg.id); 
-             msg.status = 'read';
+            await markMessageRead(msg.id);
+            msg.status = 'read';
         } catch (e) {
             console.error('Failed to mark as read', e);
         }
@@ -106,6 +106,22 @@ onMounted(async () => {
     };
 });
 
+onBeforeRouteUpdate((to, from, next) => {
+    if (!messageStream) {
+        // 重新尝试连接 SSE
+        let token = localStorage.getItem('wardrobe-access-token');
+        if (token) {
+            messageStream = createMessageStream(token);
+            messageStream.onmessage = (event) => {
+                const data = JSON.parse(event.data) as MessageData;
+                console.log('Received message:', data);
+                messages.value.push(data);
+            };
+        }
+    }
+    next();
+});
+
 onUnmounted(() => {
     if (messageStream) {
         messageStream.close();
@@ -132,34 +148,34 @@ onUnmounted(() => {
             <el-dropdown trigger="hover" @command="handleCommand">
                 <span class="el-dropdown-link">
                     <el-badge :value="unreadCount" :hidden="unreadCount === 0" class="item">
-                        <el-icon :size="20"><Bell /></el-icon>
+                        <el-icon :size="20">
+                            <Bell />
+                        </el-icon>
                     </el-badge>
                 </span>
                 <template #dropdown>
                     <el-dropdown-menu class="message-dropdown">
                         <div v-if="messages.length === 0" class="no-message">暂无消息</div>
-                        <el-dropdown-item 
-                            v-for="msg in messages" 
-                            :key="msg.id || msg.timestamp" 
-                            :command="{}"
-                        >
+                        <el-dropdown-item v-for="msg in messages" :key="msg.id || msg.timestamp" :command="{}">
                             <div class="message-row">
-                                <div class="message-content" :class="['msg-level-' + msg.level, { 'is-read': msg.status === 'read' }]">
-                                    <div 
-                                        class="message-text" 
-                                        :class="{ 'is-truncated': msg.text.length > 100 }"
-                                        @click="msg.text.length > 100 ? openMessageDialog(msg) : null"
-                                    >
+                                <div class="message-content"
+                                    :class="['msg-level-' + msg.level, { 'is-read': msg.status === 'read' }]">
+                                    <div class="message-text" :class="{ 'is-truncated': msg.text.length > 100 }"
+                                        @click="msg.text.length > 100 ? openMessageDialog(msg) : null">
                                         {{ truncateText(msg.text) }}
                                     </div>
                                     <div class="message-time">{{ new Date(msg.timestamp).toLocaleString() }}</div>
                                 </div>
                                 <div class="message-actions">
                                     <el-tooltip content="标记已读" placement="top" v-if="msg.status === 'unread'">
-                                        <el-icon class="action-icon" @click.stop="markAsRead(msg)"><Check /></el-icon>
+                                        <el-icon class="action-icon" @click.stop="markAsRead(msg)">
+                                            <Check />
+                                        </el-icon>
                                     </el-tooltip>
                                     <el-tooltip content="查看详情" placement="top" v-if="msg.link">
-                                        <el-icon class="action-icon" @click="visitLink(msg)"><Link /></el-icon>
+                                        <el-icon class="action-icon" @click="visitLink(msg)">
+                                            <Link />
+                                        </el-icon>
                                     </el-tooltip>
                                 </div>
                             </div>
@@ -173,13 +189,7 @@ onUnmounted(() => {
         </el-menu-item>
     </el-menu>
 
-    <el-dialog
-        v-model="dialogVisible"
-        title="消息详情"
-        width="800px"
-        align-center
-        append-to-body
-    >
+    <el-dialog v-model="dialogVisible" title="消息详情" width="800px" align-center append-to-body>
         <div v-if="currentMessage">
             <div class="dialog-content">
                 <div class="dialog-text" v-html="renderMarkdown(currentMessage.text)"></div>
@@ -189,7 +199,8 @@ onUnmounted(() => {
         <template #footer>
             <span class="dialog-footer">
                 <el-button @click="dialogVisible = false">关闭</el-button>
-                <el-button type="primary" @click="visitLink(currentMessage); dialogVisible = false" v-if="currentMessage?.link">
+                <el-button type="primary" @click="visitLink(currentMessage); dialogVisible = false"
+                    v-if="currentMessage?.link">
                     前往查看
                 </el-button>
             </span>
@@ -202,6 +213,7 @@ onUnmounted(() => {
     width: 100%;
     margin: 0;
 }
+
 .el-menu-item {
     padding: 5px;
 }
@@ -226,17 +238,20 @@ onUnmounted(() => {
 .notification-item {
     padding: 5px !important;
 }
+
 .message-dropdown {
     max-width: 300px;
     max-height: 400px;
     overflow-y: auto;
 }
+
 .message-row {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     width: 100%;
 }
+
 .message-content {
     display: flex;
     flex-direction: column;
@@ -247,91 +262,114 @@ onUnmounted(() => {
     margin-right: 10px;
     border-left: 3px solid transparent;
 }
+
 .msg-level-tips {
     border-left-color: #67C23A;
 }
+
 .msg-level-info {
     border-left-color: #909399;
 }
+
 .msg-level-warning {
     border-left-color: #E6A23C;
 }
+
 .msg-level-warning .message-text {
     color: #E6A23C;
 }
+
 .is-read {
     border-left-color: #EBEEF5;
 }
+
 .message-text {
     font-weight: bold;
     white-space: normal;
     word-break: break-word;
 }
+
 .is-truncated {
     cursor: pointer;
 }
+
 .is-truncated:hover {
     color: #409EFF;
 }
+
 .message-time {
     font-size: 12px;
     color: #999;
     margin-top: 4px;
 }
+
 .message-actions {
     display: flex;
     gap: 8px;
     margin-top: 5px;
     flex-shrink: 0;
 }
+
 .action-icon {
     cursor: pointer;
     color: #909399;
     transition: color 0.3s;
     font-size: 16px;
 }
+
 .action-icon:hover {
     color: #409EFF;
 }
+
 .is-read .message-text {
     font-weight: normal;
     color: #666;
 }
+
 .no-message {
     padding: 15px;
     text-align: center;
     color: #999;
     font-size: 14px;
 }
+
 .dialog-content {
     padding: 10px 0;
 }
+
 .dialog-text {
     font-size: 16px;
     line-height: 1.6;
     margin-bottom: 15px;
     word-break: break-word;
 }
+
 .dialog-text :deep(p) {
     margin-bottom: 10px;
 }
+
 .dialog-text :deep(a) {
     color: #409EFF;
     text-decoration: none;
 }
+
 .dialog-text :deep(a:hover) {
     text-decoration: underline;
 }
-.dialog-text :deep(ul), .dialog-text :deep(ol) {
+
+.dialog-text :deep(ul),
+.dialog-text :deep(ol) {
     padding-left: 20px;
     margin-bottom: 10px;
 }
+
 .dialog-text :deep(code) {
     background-color: #f4f4f5;
     padding: 2px 4px;
     border-radius: 4px;
     font-family: monospace;
 }
+
 .dialog-text :deep(pre) {
     background-color: #f4f4f5;
     padding: 10px;
@@ -339,10 +377,12 @@ onUnmounted(() => {
     overflow-x: auto;
     margin-bottom: 10px;
 }
+
 .dialog-text :deep(pre code) {
     background-color: transparent;
     padding: 0;
 }
+
 .dialog-time {
     font-size: 12px;
     color: #999;
