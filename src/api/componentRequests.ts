@@ -327,6 +327,18 @@ export const predictImage = async (description: string): Promise<ImagePredictRes
     return fetchDataAutoRetry('/api/metadata/predict/', { description }, 'POST') as Promise<ImagePredictResponse>;
 };
 
+export const listUserDict = async (): Promise<string[]> => {
+    return fetchDataAutoRetry('/api/userdict/list/', {}, 'POST') as Promise<string[]>;
+}
+
+export const addUserDict = async (word: string): Promise<void> => {
+    await fetchDataAutoRetry('/api/userdict/create/', { word }, 'POST');
+}
+
+export const deleteUserDict = async (word: string): Promise<void> => {
+    await fetchDataAutoRetry('/api/userdict/delete/', { word }, 'POST');
+}
+
 export const loginWithPassword = async (payload: LoginRequest): Promise<TokenResponse> => {
     const response = await fetch('/api/token/', {
         method: 'POST',

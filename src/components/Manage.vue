@@ -2,12 +2,14 @@
 import {
     Memo,
     Box,
+    Tickets,
     Expand,
     Fold,
 } from '@element-plus/icons-vue'
 import { ref } from 'vue'
 import ManageOcr from './ManageOcr.vue'
 import ManageBackup from './ManageBackup.vue'
+import ManageUserDict from './ManageUserDict.vue'
 
 const activeIndex = ref('1');
 const isMenuCollapsed = ref(false);
@@ -48,11 +50,18 @@ const toggleMenuCollapse = () => {
                         </el-icon>
                         <span>备份管理</span>
                     </el-menu-item>
+                    <el-menu-item index="3">
+                        <el-icon>
+                            <Tickets />
+                        </el-icon>
+                        <span>用户词典</span>
+                    </el-menu-item>
                 </el-menu>
             </div>
         </el-col>
         <ManageOcr v-if="activeIndex === '1'" />
         <ManageBackup v-if="activeIndex === '2'" />
+        <ManageUserDict v-if="activeIndex === '3'" />
     </el-row>
 </template>
 
