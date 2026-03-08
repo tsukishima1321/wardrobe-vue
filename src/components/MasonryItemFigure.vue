@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-const { src, figcaption, oriSrc, checked } = defineProps({
+import { Collection } from '@element-plus/icons-vue'
+const { src, figcaption, oriSrc, checked, isCollection } = defineProps({
     src: {
         type: String,
         default: '/placeholder.png'
@@ -14,6 +15,10 @@ const { src, figcaption, oriSrc, checked } = defineProps({
         default: '/placeholder.png'
     },
     checked: {
+        type: Boolean,
+        default: false
+    },
+    isCollection: {
         type: Boolean,
         default: false
     }
@@ -46,7 +51,12 @@ const changed = () => {
 
 <template>
     <figure class="masonry-item">
-        <img :src="src" @click="clicked">
+        <div class="img-wrapper">
+            <img :src="src" @click="clicked">
+            <div v-if="isCollection" class="collection-badge">
+                <el-icon><Collection /></el-icon>
+            </div>
+        </div>
         <figcaption><el-checkbox v-model="selected" @change="changed" style="display: inline;"></el-checkbox>{{
             figcaption }}</figcaption>
     </figure>
@@ -77,10 +87,30 @@ figure figcaption {
     background-color: #f1f1f1;
 }
 
-figure img {
+.img-wrapper {
+    position: relative;
+}
+
+.img-wrapper img {
     width: 100%;
     height: auto;
     margin-bottom: 0px;
     border-radius: 4px 4px 0 0;
+    display: block;
+}
+
+.collection-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    backdrop-filter: blur(4px);
 }
 </style>

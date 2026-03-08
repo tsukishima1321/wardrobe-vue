@@ -76,6 +76,11 @@ export interface ImageProperty {
     value: string;
 }
 
+export interface CollectionItem {
+    image_href: string;
+    sort_order: number;
+}
+
 export interface ImageData {
     src: string;
     title: string;
@@ -83,6 +88,8 @@ export interface ImageData {
     text: string;
     keywords?: Array<string>;
     propertys?: Array<ImageProperty>;
+    is_collection?: boolean;
+    items?: CollectionItem[];
 }
 
 export interface OcrMissionItem {
@@ -136,7 +143,7 @@ export interface SavedSearchParams {
 export interface SearchResponse {
     totalPage: number;
     total: number;
-    hrefList: Array<{ src: string; title: string; date: string }>;
+    hrefList: Array<{ src: string; title: string; date: string; is_collection?: boolean }>;
 }
 
 export interface LoginRequest {
@@ -178,8 +185,12 @@ export const generateTips = async (): Promise<unknown> => {
     return fetchDataAutoRetry('/api/generatetips/', {}, 'GET') as Promise<unknown>;
 };
 
-export const getRandomImageInfo = async (keyword?: string): Promise<ImgInfo> => {
-    const url = keyword ? `/api/random/?keyword=${encodeURIComponent(keyword)}` : '/api/random/';
+export const getRandomImageInfo = async (keyword?: string, includeCollections = false): Promise<ImgInfo> => {
+    const params = new URLSearchParams();
+    if (keyword) params.set('keyword', keyword);
+    if (includeCollections) params.set('includeCollections', 'true');
+    const qs = params.toString();
+    const url = qs ? `/api/random/?${qs}` : '/api/random/';
     return fetchDataAutoRetry(url, {}, 'GET') as Promise<ImgInfo>;
 };
 
@@ -338,6 +349,38 @@ export const addUserDict = async (word: string): Promise<void> => {
 export const deleteUserDict = async (word: string): Promise<void> => {
     await fetchDataAutoRetry('/api/userdict/delete/', { word }, 'POST');
 }
+
+// === Collection APIs ===
+
+export interface CollectionCreateRequest {
+    title?: string;
+    date?: string;
+    keywords?: string[];
+    properties?: Array<{ name: string; value: string }>;
+}
+
+export const createCollection = async (data: CollectionCreateRequest): Promise<{ status: string; href: string }> => {
+    return fetchDataAutoRetry('/api/collection/create/', data, 'POST') as Promise<{ status: string; href: string }>;
+};
+
+export const addImageToCollection = async (src: string, imageFile: File): Promise<{ status: string; image_href: string; sort_order: number }> => {
+    const formData = new FormData();
+    formData.append('src', src);
+    formData.append('image', imageFile);
+    return fetchDataAutoRetry('/api/collection/add/', formData, 'POST', false) as Promise<{ status: string; image_href: string; sort_order: number }>;
+};
+
+export const removeImageFromCollection = async (src: string, image_href: string): Promise<{ status: string }> => {
+    return fetchDataAutoRetry('/api/collection/remove/', { src, image_href }, 'POST') as Promise<{ status: string }>;
+};
+
+export const deleteCollection = async (src: string): Promise<{ status: string }> => {
+    return fetchDataAutoRetry('/api/collection/delete/', { src }, 'POST') as Promise<{ status: string }>;
+};
+
+export const listCollectionImages = async (src: string): Promise<CollectionItem[]> => {
+    return fetchDataAutoRetry('/api/collection/list/', { src }, 'POST') as Promise<CollectionItem[]>;
+};
 
 export const loginWithPassword = async (payload: LoginRequest): Promise<TokenResponse> => {
     const response = await fetch('/api/token/', {

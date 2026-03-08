@@ -5,7 +5,7 @@ import Masonry from 'masonry-layout';
 import { debounce } from 'lodash';
 import { ElMessage, ElMessageBox, ElDrawer } from 'element-plus';
 import { GetBlobImgSrc } from "@/api/token";
-import { deleteImage, getSearchHints, searchImages } from "@/api/componentRequests";
+import { deleteImage, deleteCollection, getSearchHints, searchImages, listCollectionImages } from "@/api/componentRequests";
 
 import SearchFilterPanel from './SearchFilterPanel.vue';
 import SearchResultsHeader from './SearchResultsHeader.vue';
@@ -32,7 +32,7 @@ export interface SearchParams {
 interface SearchResponse {
     totalPage: number;
     total: number;
-    hrefList: Array<{ src: string, title: string, date: string }>;
+    hrefList: Array<{ src: string, title: string, date: string, is_collection?: boolean }>;
 }
 
 interface BlobImgItem {
@@ -41,6 +41,7 @@ interface BlobImgItem {
     title: string;
     checked: boolean;
     date: string;
+    isCollection: boolean;
 }
 
 const router = useRouter();
@@ -156,7 +157,8 @@ const updateSearch = debounce(async () => {
             oriSrc: item.src,
             title: item.title,
             checked: false,
-            date: item.date
+            date: item.date,
+            isCollection: !!item.is_collection
         }));
 
         if (isPictureMode.value) {
@@ -179,21 +181,25 @@ const updateSearch = debounce(async () => {
 }, 200);
 
 const handleDelete = async () => {
-    const selectedList = blobImgList.value.filter(item => item.checked).map(item => item.oriSrc);
-    if (selectedList.length === 0) {
+    const selectedItems = blobImgList.value.filter(item => item.checked);
+    if (selectedItems.length === 0) {
         ElMessage.warning('选择列表为空');
         return;
     }
 
     try {
-        await ElMessageBox.confirm(`确定删除 ${selectedList.length} 项吗？`, '提示', {
+        await ElMessageBox.confirm(`确定删除 ${selectedItems.length} 项吗？`, '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning'
         });
 
-        for (const item of selectedList) {
-            await deleteImage(item);
+        for (const item of selectedItems) {
+            if (item.isCollection) {
+                await deleteCollection(item.oriSrc);
+            } else {
+                await deleteImage(item.oriSrc);
+            }
         }
         ElMessage.success('删除成功');
         updateSearch();
@@ -203,16 +209,40 @@ const handleDelete = async () => {
 };
 
 const handleDownload = async () => {
-    const selectedList = blobImgList.value.filter(item => item.checked).map(item => item.oriSrc);
-    if (selectedList.length === 0) {
+    const selectedItems = blobImgList.value.filter(item => item.checked);
+    if (selectedItems.length === 0) {
         ElMessage.warning('选择列表为空');
         return;
     }
 
-    for (const item of selectedList) {
+    // Collect all hrefs to download, expanding collections
+    const downloadHrefs: string[] = [];
+    for (const item of selectedItems) {
+        if (item.isCollection) {
+            const images = await listCollectionImages(item.oriSrc);
+            if (images.length === 0) {
+                ElMessage.info(`合集 ${item.title} 中没有图片`);
+                continue;
+            }
+            try {
+                await ElMessageBox.confirm(
+                    `合集「${item.title}」包含 ${images.length} 张图片，确定全部下载吗？`,
+                    '下载合集',
+                    { confirmButtonText: '下载', cancelButtonText: '跳过', type: 'info' }
+                );
+                downloadHrefs.push(...images.map(img => img.image_href));
+            } catch {
+                // User chose to skip this collection
+            }
+        } else {
+            downloadHrefs.push(item.oriSrc);
+        }
+    }
+
+    for (const href of downloadHrefs) {
         const link = document.createElement('a');
-        link.href = await GetBlobImgSrc('/imagebed/' + item);
-        link.download = item;
+        link.href = await GetBlobImgSrc('/imagebed/' + href);
+        link.download = href;
         link.click();
     }
 };
@@ -310,6 +340,7 @@ onMounted(() => {
                     <div ref="masonryContainer" class="masonry">
                         <MasonryItemFigure v-for="blobImg in blobImgList" :key="blobImg.oriSrc" :src="blobImg.blobSrc"
                             :oriSrc="blobImg.oriSrc" :figcaption="blobImg.title" :checked="blobImg.checked"
+                            :isCollection="blobImg.isCollection"
                             @clicked="imgClicked" @selected="imgSelected" @unselected="imgUnSelected" />
                     </div>
                 </div>
@@ -325,6 +356,12 @@ onMounted(() => {
                         <el-table-column type="selection" width="55" />
                         <el-table-column prop="date" label="日期" width="180" />
                         <el-table-column prop="title" label="标题" />
+                        <el-table-column label="类型" width="80">
+                            <template #default="{ row }">
+                                <el-tag v-if="row.isCollection" size="small" type="warning">合集</el-tag>
+                                <el-tag v-else size="small" type="info">图片</el-tag>
+                            </template>
+                        </el-table-column>
                     </el-table>
                 </div>
             </div>

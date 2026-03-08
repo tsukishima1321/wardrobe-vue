@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
-import { ref } from 'vue';
-import { ElMessage, ElLoading, ElInput } from 'element-plus';
+import { ref, computed } from 'vue';
+import { ElMessage, ElLoading, ElInput, ElMessageBox } from 'element-plus';
 import { GetBlobImgSrc } from '../api/token.ts';
 import {
     createKeyword,
@@ -13,9 +13,16 @@ import {
     getKeywordList,
     getPropertyList,
     setImageInfo,
-    setImageText
+    setImageText,
+    addImageToCollection,
+    removeImageFromCollection,
+    deleteCollection,
+    deleteImage,
+    listCollectionImages
 } from '@/api/componentRequests';
-import { ZoomIn, ZoomOut, Refresh, Picture, Edit, Check, Plus, Delete } from '@element-plus/icons-vue';
+import type { CollectionItem } from '@/api/componentRequests';
+import { ZoomIn, ZoomOut, Refresh, Picture, Edit, Check, Plus, Delete, Collection, Upload as UploadIcon } from '@element-plus/icons-vue';
+import { ElImageViewer } from 'element-plus';
 
 const router = useRouter();
 const imgSrc = ref(router.currentRoute.value.params.src);
@@ -23,6 +30,19 @@ const blobSrc = ref('');
 const enableEdit = ref(false);
 const enableEditText = ref(false);
 const imgLoading = ref(true);
+
+// Collection state
+const isCollection = ref(false);
+const collectionItems = ref<Array<CollectionItem & { blobSrc: string }>>([]);
+const collectionLoading = ref(false);
+const addImageDialogVisible = ref(false);
+const selectedFiles = ref<File[]>([]);
+const addingImages = ref(false);
+const addProgress = ref(0);
+const addTotal = ref(0);
+const previewVisible = ref(false);
+const previewList = ref<string[]>([]);
+const previewIndex = ref(0);
 
 interface ImageProperty {
     name: string;
@@ -53,9 +73,30 @@ interface imgData {
     title: string,
     date: string,
     text: string,
+    is_collection?: boolean,
+    items?: CollectionItem[],
     keywords?: Array<string>,
     propertys?: Array<ImageProperty>
 }
+
+const loadCollectionImages = async () => {
+    if (!isCollection.value) return;
+    collectionLoading.value = true;
+    try {
+        const items = await listCollectionImages(imgSrc.value as string);
+        collectionItems.value = items.map(item => ({ ...item, blobSrc: '' }));
+        // Load thumbnails only
+        for (const item of collectionItems.value) {
+            GetBlobImgSrc("/imagebed/thumbnails/" + item.image_href).then(src => {
+                item.blobSrc = src;
+            }).catch(() => { });
+        }
+    } catch {
+        ElMessage.error('加载合集图片失败');
+    } finally {
+        collectionLoading.value = false;
+    }
+};
 
 const loadImg = async () => {
     imgLoading.value = true;
@@ -64,6 +105,7 @@ const loadImg = async () => {
         imgTitle.value = r.title;
         imgText.value = r.text;
         imgDate.value = r.date;
+        isCollection.value = !!r.is_collection;
         const keywordsData = await getKeywordList(imgSrc.value as string);
         keywords.value = keywordsData as Array<string>;
         const propertysData = await getPropertyList(imgSrc.value as string);
@@ -76,9 +118,12 @@ const loadImg = async () => {
         blobSrc.value = await GetBlobImgSrc("/imagebed/" + imgSrc.value);
     } catch {
         ElMessage.error('图片加载失败');
-        // router.push('/login');
     } finally {
         imgLoading.value = false;
+    }
+
+    if (isCollection.value) {
+        await loadCollectionImages();
     }
 }
 
@@ -281,48 +326,220 @@ const resetZoom = () => {
     zoomLevel.value = 1;
 }
 
+// Collection methods
+const handleAddImageFiles = (file: any) => {
+    if (file.raw) {
+        selectedFiles.value.push(file.raw);
+    }
+    return false;
+};
+
+const submitAddImages = async () => {
+    if (selectedFiles.value.length === 0) {
+        ElMessage.warning('请选择要添加的图片');
+        return;
+    }
+    addingImages.value = true;
+    addTotal.value = selectedFiles.value.length;
+    addProgress.value = 0;
+    try {
+        for (const file of selectedFiles.value) {
+            await addImageToCollection(imgSrc.value as string, file);
+            addProgress.value++;
+        }
+        ElMessage.success(`成功添加 ${selectedFiles.value.length} 张图片`);
+        selectedFiles.value = [];
+        addImageDialogVisible.value = false;
+        await loadCollectionImages();
+        // Refresh thumbnail (the backend regenerates it)
+        blobSrc.value = await GetBlobImgSrc("/imagebed/" + imgSrc.value + '?t=' + Date.now());
+    } catch (error: any) {
+        if (error?.data?.status === 'Already exists') {
+            ElMessage.warning('部分图片已在合集中');
+        } else {
+            ElMessage.error('添加图片失败');
+        }
+    } finally {
+        addingImages.value = false;
+    }
+};
+
+const handleRemoveFromCollection = async (imageHref: string) => {
+    try {
+        await ElMessageBox.confirm('确定从合集中移除此图片吗？', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+        });
+        await removeImageFromCollection(imgSrc.value as string, imageHref);
+        ElMessage.success('图片已从合集中移除');
+        await loadCollectionImages();
+        blobSrc.value = await GetBlobImgSrc("/imagebed/" + imgSrc.value + '?t=' + Date.now());
+    } catch (e) {
+        // cancelled or error
+    }
+};
+
+const handleDeleteThis = async () => {
+    const label = isCollection.value ? '合集' : '图片';
+    try {
+        await ElMessageBox.confirm(`确定删除此${label}吗？此操作不可恢复。`, '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+        });
+        if (isCollection.value) {
+            await deleteCollection(imgSrc.value as string);
+        } else {
+            await deleteImage(imgSrc.value as string);
+        }
+        ElMessage.success(`${label}已删除`);
+        window.close();
+    } catch (e) {
+        // cancelled
+    }
+};
+
+const openCollectionPreview = async (index: number) => {
+    const loading = ElLoading.service({
+        lock: true,
+        text: '原图加载中...',
+        background: 'rgba(0, 0, 0, 0.7)',
+    });
+    const item = collectionItems.value[index];
+    if (!item) return;
+    try {
+        const fullSrc = await GetBlobImgSrc("/imagebed/" + item.image_href);
+        previewList.value = [fullSrc];
+        previewIndex.value = 0;
+        previewVisible.value = true;
+    } catch {
+        ElMessage.error('图片加载失败');
+    } finally {
+        loading.close();
+    }
+};
+
 loadImg();
 
 </script>
 
 <template>
     <div class="layout-container">
-        <!-- Left: Image Viewer -->
+        <!-- Left: Image Viewer / Collection Gallery -->
         <div class="image-viewer">
-            <div class="image-stage">
-                <div class="image-content" :style="{ width: `${zoomLevel * 100}%` }">
-                    <el-skeleton v-if="imgLoading" animated>
-                        <template #template>
-                            <el-skeleton-item variant="image" style="width: 100%; height: 80vh; border-radius: 8px;" />
-                        </template>
-                    </el-skeleton>
-                    <el-image v-show="!imgLoading" :src="blobSrc" :preview-src-list="[blobSrc]" class="main-image">
-                        <template #error>
-                            <div class="image-error">
-                                <el-icon>
-                                    <Picture />
-                                </el-icon>
-                                <span>无法加载图片</span>
-                            </div>
-                        </template>
-                    </el-image>
+            <!-- Single image mode -->
+            <template v-if="!isCollection">
+                <div class="image-stage">
+                    <div class="image-content" :style="{ width: `${zoomLevel * 100}%` }">
+                        <el-skeleton v-if="imgLoading" animated>
+                            <template #template>
+                                <el-skeleton-item variant="image"
+                                    style="width: 100%; height: 80vh; border-radius: 8px;" />
+                            </template>
+                        </el-skeleton>
+                        <el-image v-show="!imgLoading" :src="blobSrc" :preview-src-list="[blobSrc]" class="main-image">
+                            <template #error>
+                                <div class="image-error">
+                                    <el-icon>
+                                        <Picture />
+                                    </el-icon>
+                                    <span>无法加载图片</span>
+                                </div>
+                            </template>
+                        </el-image>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Floating Zoom Controls -->
-            <div class="zoom-bar">
-                <el-button-group>
-                    <el-button :icon="ZoomOut" circle @click="zoomOut" :disabled="zoomLevel <= minZoom" />
-                    <el-button @click="resetZoom" :disabled="zoomLevel === 1">{{ Math.round(zoomLevel * 100)
-                    }}%</el-button>
-                    <el-button :icon="ZoomIn" circle @click="zoomIn" :disabled="zoomLevel >= maxZoom" />
-                </el-button-group>
-            </div>
+                <!-- Floating Zoom Controls -->
+                <div class="zoom-bar">
+                    <el-button-group>
+                        <el-button :icon="ZoomOut" circle @click="zoomOut" :disabled="zoomLevel <= minZoom" />
+                        <el-button @click="resetZoom" :disabled="zoomLevel === 1">{{ Math.round(zoomLevel * 100)
+                        }}%</el-button>
+                        <el-button :icon="ZoomIn" circle @click="zoomIn" :disabled="zoomLevel >= maxZoom" />
+                    </el-button-group>
+                </div>
+            </template>
+
+            <!-- Collection gallery mode -->
+            <template v-else>
+                <div class="collection-gallery">
+                    <div class="collection-header">
+                        <div class="collection-badge-title">
+                            <el-icon>
+                                <Collection />
+                            </el-icon>
+                            <span>合集 · {{ collectionItems.length }} 张图片</span>
+                        </div>
+                        <el-button type="primary" :icon="Plus" @click="addImageDialogVisible = true">添加图片</el-button>
+                    </div>
+                    <div class="collection-grid" v-loading="collectionLoading">
+                        <div v-for="(item, index) in collectionItems" :key="item.image_href"
+                            class="collection-grid-item">
+                            <div class="collection-img-wrapper">
+                                <el-image :src="item.blobSrc" fit="cover" class="collection-thumb"
+                                    @click="openCollectionPreview(index)">
+                                    <template #error>
+                                        <div class="image-error">
+                                            <el-icon>
+                                                <Picture />
+                                            </el-icon>
+                                        </div>
+                                    </template>
+                                </el-image>
+                                <div class="collection-item-actions">
+                                    <el-button type="danger" :icon="Delete" circle size="small"
+                                        @click.stop="handleRemoveFromCollection(item.image_href)" />
+                                </div>
+                            </div>
+                            <div class="collection-item-label">{{ item.image_href }}</div>
+                        </div>
+                        <div v-if="collectionItems.length === 0 && !collectionLoading" class="collection-empty">
+                            <el-empty description="合集中暂无图片，点击上方按钮添加" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add images dialog -->
+                <el-dialog v-model="addImageDialogVisible" title="向合集添加图片" width="500px">
+                    <el-upload drag multiple :auto-upload="false" :on-change="handleAddImageFiles" accept="image/*">
+                        <el-icon class="el-icon--upload">
+                            <UploadIcon />
+                        </el-icon>
+                        <div class="el-upload__text">
+                            拖拽文件到此处，或<em>点击上传</em>
+                        </div>
+                    </el-upload>
+                    <template #footer>
+                        <div v-if="addingImages" style="width: 100%; margin-bottom: 12px;">
+                            <el-progress :percentage="addTotal > 0 ? Math.round(addProgress / addTotal * 100) : 0"
+                                :format="() => `${addProgress} / ${addTotal}`" :stroke-width="20" :text-inside="true" />
+                        </div>
+                        <el-button @click="addImageDialogVisible = false; selectedFiles = []" :disabled="addingImages">取消</el-button>
+                        <el-button type="primary" @click="submitAddImages" :loading="addingImages">
+                            上传 {{ selectedFiles.length }} 张图片
+                        </el-button>
+                    </template>
+                </el-dialog>
+
+                <!-- Full-size image preview viewer -->
+                <ElImageViewer v-if="previewVisible" :url-list="previewList" :initial-index="previewIndex"
+                    :z-index="2000" @close="previewVisible = false" />
+            </template>
         </div>
 
         <!-- Right: Details Panel -->
         <div class="details-panel">
             <div class="panel-content">
+                <!-- Collection indicator -->
+                <div v-if="isCollection" class="collection-indicator">
+                    <el-icon>
+                        <Collection />
+                    </el-icon>
+                    <span>图片合集</span>
+                </div>
+
                 <!-- Header / Basic Info -->
                 <div class="section basic-info">
                     <div class="section-header">
@@ -386,8 +603,7 @@ loadImg();
                         <div v-for="prop in propertys" :key="prop.name + prop.value" class="prop-item">
                             <span class="prop-name">{{ prop.name }}</span>
                             <span class="prop-value">{{ prop.value }}</span>
-                            <el-button link type="danger" @click="removeProperty(prop)"
-                                class="delete-prop">
+                            <el-button link type="danger" @click="removeProperty(prop)" class="delete-prop">
                                 <el-icon>
                                     <Delete />
                                 </el-icon>
@@ -396,12 +612,10 @@ loadImg();
                     </div>
 
                     <div class="add-prop-row">
-                        <el-input ref="propertyNameInput" v-model="newPropertyName" placeholder="属性名"
-                            style="width: 35%" @keyup.enter.prevent="focusPropertyValueInput"
-                            :disabled="propertyActionPending" />
-                        <el-input ref="propertyValueInput" v-model="newPropertyValue" placeholder="属性值"
-                            style="flex: 1" @keyup.enter.prevent="handlePropertyValueEnter"
-                            :disabled="propertyActionPending" />
+                        <el-input ref="propertyNameInput" v-model="newPropertyName" placeholder="属性名" style="width: 35%"
+                            @keyup.enter.prevent="focusPropertyValueInput" :disabled="propertyActionPending" />
+                        <el-input ref="propertyValueInput" v-model="newPropertyValue" placeholder="属性值" style="flex: 1"
+                            @keyup.enter.prevent="handlePropertyValueEnter" :disabled="propertyActionPending" />
                         <el-button @click="addProperty" :loading="propertyActionPending">添加</el-button>
                     </div>
                 </div>
@@ -423,6 +637,15 @@ loadImg();
                         <el-input v-model="imgText" type="textarea" :rows="10" placeholder="暂无文本信息"
                             :readonly="!enableEditText" resize="none" class="text-area-custom" />
                     </div>
+                </div>
+
+                <el-divider />
+
+                <!-- Danger Zone -->
+                <div class="section danger-section">
+                    <el-button type="danger" plain @click="handleDeleteThis" :icon="Delete">
+                        删除{{ isCollection ? '合集' : '图片' }}
+                    </el-button>
                 </div>
             </div>
         </div>
@@ -656,5 +879,108 @@ loadImg();
     .panel-content {
         padding: 20px;
     }
+
+    .collection-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+/* Collection indicator */
+.collection-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background-color: #fdf6ec;
+    border: 1px solid #f5dab1;
+    border-radius: 6px;
+    color: #e6a23c;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 16px;
+}
+
+/* Collection gallery */
+.collection-gallery {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.collection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.collection-badge-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #303133;
+}
+
+.collection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    flex: 1;
+}
+
+.collection-grid-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.collection-img-wrapper {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    aspect-ratio: 1;
+    background-color: #f5f5f7;
+}
+
+.collection-thumb {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.collection-item-actions {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.collection-img-wrapper:hover .collection-item-actions {
+    opacity: 1;
+}
+
+.collection-item-label {
+    font-size: 11px;
+    color: #909399;
+    margin-top: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.collection-empty {
+    grid-column: 1 / -1;
+    padding: 40px 0;
+}
+
+/* Danger zone */
+.danger-section {
+    display: flex;
+    justify-content: flex-end;
 }
 </style>

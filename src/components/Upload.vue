@@ -12,7 +12,8 @@ import {
     getImageDetail,
     executeOcrMission,
     newOcrMission,
-    predictImage
+    predictImage,
+    createCollection
 } from '@/api/componentRequests';
 import { GetBlobImgSrc, ResponseWithError } from '@/api/token';
 import { ref, computed, watch } from 'vue';
@@ -20,15 +21,16 @@ import { useRouter } from 'vue-router';
 import { ElMessage, ElLoading, ElMessageBox, ElInput } from 'element-plus';
 import type { UploadFile } from 'element-plus';
 import { debounce } from 'lodash';
-import { Plus, Delete, UploadFilled, Picture, ZoomIn, ZoomOut, Refresh, Connection, List } from '@element-plus/icons-vue';
+import { Plus, Delete, UploadFilled, Picture, ZoomIn, ZoomOut, Refresh, Connection, List, Collection } from '@element-plus/icons-vue';
 
 const router = useRouter();
 
 // Mode Management
-type UploadMode = 'normal' | 'quick' | 'reprocess';
+type UploadMode = 'normal' | 'quick' | 'reprocess' | 'collection';
 const mode = ref<UploadMode>('normal');
 const isReprocessMode = computed(() => mode.value === 'reprocess');
 const isQuickMode = computed(() => mode.value === 'quick');
+const isCollectionMode = computed(() => mode.value === 'collection');
 
 const switchMode = async (newMode: UploadMode) => {
     if (mode.value === newMode) return;
@@ -45,6 +47,14 @@ const switchMode = async (newMode: UploadMode) => {
         }
     }
 
+    // Reset form when switching to any mode
+    imgTitle.value = '';
+    imgDate.value = new Date().toISOString().split('T')[0];
+    keywords.value = [];
+    properties.value = [];
+    newKeyword.value = '';
+    newPropertyName.value = '';
+    newPropertyValue.value = '';
     fileQueue.value = [];
     mode.value = newMode;
     currentIndex.value = 0;
@@ -498,6 +508,38 @@ const removeProperty = (index: number) => {
 const propertyValueInput = ref<InstanceType<typeof ElInput> | null>(null);
 const propertyNameInput = ref<InstanceType<typeof ElInput> | null>(null);
 
+// Collection mode
+const creatingCollection = ref(false);
+
+const submitCollection = async () => {
+    if (!imgTitle.value.trim()) {
+        ElMessage.warning('请输入合集标题');
+        return;
+    }
+    creatingCollection.value = true;
+    const loading = ElLoading.service({
+        lock: true,
+        text: '创建合集中...',
+        background: 'rgba(0, 0, 0, 0.7)',
+    });
+    try {
+        const res = await createCollection({
+            title: imgTitle.value.trim(),
+            date: imgDate.value,
+            keywords: keywords.value,
+            properties: properties.value,
+        });
+        ElMessage.success('合集创建成功');
+        router.push('/detail/' + res.href);
+    } catch (error) {
+        console.error('Create collection failed:', error);
+        ElMessage.error('创建合集失败，请重试');
+    } finally {
+        loading.close();
+        creatingCollection.value = false;
+    }
+};
+
 const focusPropertyValueInput = () => {
     propertyValueInput.value?.focus();
 };
@@ -507,7 +549,7 @@ const focusPropertyValueInput = () => {
 <template>
     <div class="layout-container">
         <!-- Left: Image Viewer & Queue -->
-        <div class="image-viewer">
+        <div class="image-viewer" v-if="!isCollectionMode">
             <!-- Empty State / Drop Zone -->
             <div v-if="fileQueue.length === 0" class="empty-state">
                 <el-upload class="upload-drop-zone" drag multiple :auto-upload="false" :show-file-list="false"
@@ -577,10 +619,86 @@ const focusPropertyValueInput = () => {
                     <el-radio-button label="normal">普通上传</el-radio-button>
                     <el-radio-button label="quick">快速上传</el-radio-button>
                     <el-radio-button label="reprocess">补全信息</el-radio-button>
+                    <el-radio-button label="collection">创建合集</el-radio-button>
                 </el-radio-group>
             </div>
 
-            <div v-if="fileQueue.length === 0" class="panel-empty">
+            <!-- Collection Mode Panel -->
+            <div v-if="isCollectionMode" class="panel-content">
+                <div class="section basic-info">
+                    <div class="collection-mode-header">
+                        <el-icon class="collection-mode-icon"><Collection /></el-icon>
+                        <span>创建图片合集</span>
+                    </div>
+
+                    <el-form label-position="top" size="default">
+                        <el-form-item label="合集标题">
+                            <el-input v-model="imgTitle" placeholder="输入合集标题" @blur="handlePredict" />
+                        </el-form-item>
+                        <el-form-item label="日期">
+                            <el-date-picker v-model="imgDate" type="date" placeholder="选择日期" style="width: 100%"
+                                format="YYYY-MM-DD" value-format="YYYY-MM-DD" />
+                        </el-form-item>
+                    </el-form>
+                </div>
+
+                <el-divider />
+
+                <!-- Keywords (shared) -->
+                <div class="section">
+                    <div class="section-title">关键词</div>
+                    <div class="tags-wrapper">
+                        <el-tag v-for="k in keywords" :key="k" closable type="info" effect="plain"
+                            @close="removeKeyword(k)" class="custom-tag" style="height: 32px;">
+                            {{ k }}
+                        </el-tag>
+                        <div class="add-tag-wrapper">
+                            <el-autocomplete v-model="newKeyword" :fetch-suggestions="querySearchKeywords"
+                                placeholder="新关键词" class="new-tag-input" @select="handleSelectKeyword"
+                                @keyup.enter="addKeyword">
+                                <template #append>
+                                    <el-button @click="addKeyword" size="small">
+                                        <el-icon><Plus /></el-icon>
+                                    </el-button>
+                                </template>
+                            </el-autocomplete>
+                        </div>
+                    </div>
+                </div>
+
+                <el-divider />
+
+                <!-- Properties (shared) -->
+                <div class="section">
+                    <div class="section-title">属性</div>
+                    <div class="props-list">
+                        <div v-for="(p, i) in properties" :key="i" class="prop-item">
+                            <span class="prop-name">{{ p.name }}</span>
+                            <span class="prop-value">{{ p.value }}</span>
+                            <el-button link type="danger" size="small" @click="removeProperty(i)">
+                                <el-icon><Delete /></el-icon>
+                            </el-button>
+                        </div>
+                    </div>
+                    <div class="add-prop-row">
+                        <el-autocomplete v-model="newPropertyName"
+                            :fetch-suggestions="querySearchProps" placeholder="属性名" style="width: 40%"
+                            @keyup.enter.prevent="focusPropertyValueInput" />
+                        <el-input v-model="newPropertyValue" placeholder="属性值" style="flex: 1"
+                            @keyup.enter="addProperty" />
+                        <el-button @click="addProperty">添加</el-button>
+                    </div>
+                </div>
+
+                <el-divider />
+
+                <el-button type="primary" size="large" @click="submitCollection" :loading="creatingCollection"
+                    style="width: 100%;">
+                    <el-icon><Collection /></el-icon> 创建合集
+                </el-button>
+            </div>
+
+            <div v-else-if="fileQueue.length === 0" class="panel-empty">
                 <el-empty description="列表为空" />
                 <el-button v-if="isReprocessMode" type="primary" @click="loadUnprocessedImages">刷新列表</el-button>
             </div>
@@ -846,6 +964,15 @@ const focusPropertyValueInput = () => {
     display: flex;
     flex-direction: column;
     z-index: 10;
+    flex-shrink: 0;
+}
+
+/* When collection mode hides the image viewer, center the panel */
+.layout-container > .details-panel:first-child {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    border-left: none;
 }
 
 .panel-empty {
@@ -938,6 +1065,22 @@ const focusPropertyValueInput = () => {
 .add-prop-row {
     display: flex;
     gap: 8px;
+}
+
+/* Collection Mode */
+.collection-mode-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #303133;
+}
+
+.collection-mode-icon {
+    font-size: 22px;
+    color: #e6a23c;
 }
 
 /* Mobile Responsive */

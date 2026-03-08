@@ -10,7 +10,8 @@ import {
     Upload,
     ArrowRight,
     Refresh,
-    CaretTop
+    CaretTop,
+    Collection
 } from '@element-plus/icons-vue';
 import defaultAvatar from '@/assets/icons/defaultAvatar.jpg';
 
