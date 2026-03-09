@@ -79,6 +79,7 @@ export interface ImageProperty {
 export interface CollectionItem {
     image_href: string;
     sort_order: number;
+    liked: boolean;
 }
 
 export interface ImageData {
@@ -380,6 +381,10 @@ export const deleteCollection = async (src: string): Promise<{ status: string }>
 
 export const listCollectionImages = async (src: string): Promise<CollectionItem[]> => {
     return fetchDataAutoRetry('/api/collection/list/', { src }, 'POST') as Promise<CollectionItem[]>;
+};
+
+export const likeCollectionImage = async (src: string, image_href: string, liked: boolean): Promise<{ status: string, liked: boolean }> => {
+    return fetchDataAutoRetry('/api/collection/like/', { src, image_href, liked }, 'POST') as Promise<{ status: string, liked: boolean }>;
 };
 
 export const loginWithPassword = async (payload: LoginRequest): Promise<TokenResponse> => {

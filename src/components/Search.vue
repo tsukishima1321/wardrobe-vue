@@ -163,7 +163,8 @@ const updateSearch = debounce(async () => {
 
         if (isPictureMode.value) {
             data.hrefList.forEach(item => {
-                GetBlobImgSrc("/imagebed/thumbnails/" + item.src).then((blobSrc) => {
+                // 合集的缩略图可能变化，加上时间戳参数强制刷新缓存
+                GetBlobImgSrc("/imagebed/thumbnails/" + item.src + (item.is_collection ? `?${Date.now()}` : '')).then((blobSrc) => {
                     const imgItem = blobImgList.value.find(img => img.oriSrc === item.src);
                     if (imgItem) {
                         imgItem.blobSrc = blobSrc;

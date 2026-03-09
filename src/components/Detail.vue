@@ -18,10 +18,11 @@ import {
     removeImageFromCollection,
     deleteCollection,
     deleteImage,
-    listCollectionImages
+    listCollectionImages,
+    likeCollectionImage
 } from '@/api/componentRequests';
 import type { CollectionItem } from '@/api/componentRequests';
-import { ZoomIn, ZoomOut, Refresh, Picture, Edit, Check, Plus, Delete, Collection, Upload as UploadIcon } from '@element-plus/icons-vue';
+import { ZoomIn, ZoomOut, Refresh, Picture, Edit, Check, Plus, Delete, Collection, Upload as UploadIcon, Star, StarFilled } from '@element-plus/icons-vue';
 import { ElImageViewer } from 'element-plus';
 
 const router = useRouter();
@@ -380,6 +381,18 @@ const handleRemoveFromCollection = async (imageHref: string) => {
     }
 };
 
+const handleLikeCollection = async (imageHref: string) => {
+    try {
+        const item = collectionItems.value.find(i => i.image_href === imageHref);
+        if (!item) return;
+        const response = await likeCollectionImage(imgSrc.value as string, imageHref, !(item.liked));
+        item.liked = response.liked;
+        ElMessage.success(response.liked ? '已点赞' : '已取消点赞');
+    } catch {
+        ElMessage.error('操作失败，请重试');
+    }
+};
+
 const handleDeleteThis = async () => {
     const label = isCollection.value ? '合集' : '图片';
     try {
@@ -488,7 +501,11 @@ loadImg();
                                         </div>
                                     </template>
                                 </el-image>
-                                <div class="collection-item-actions">
+                                <div class="collection-item-actions-like" :class="{ 'is-liked': item.liked }">
+                                    <el-button :type="item.liked ? 'warning' : 'default'" :icon="item.liked ? StarFilled : Star" circle size="small"
+                                        @click.stop="handleLikeCollection(item.image_href)" />
+                                </div>
+                                <div class="collection-item-actions-delete">
                                     <el-button type="danger" :icon="Delete" circle size="small"
                                         @click.stop="handleRemoveFromCollection(item.image_href)" />
                                 </div>
@@ -952,7 +969,7 @@ loadImg();
     display: block;
 }
 
-.collection-item-actions {
+.collection-item-actions-delete {
     position: absolute;
     top: 6px;
     right: 6px;
@@ -960,7 +977,20 @@ loadImg();
     transition: opacity 0.2s;
 }
 
-.collection-img-wrapper:hover .collection-item-actions {
+.collection-item-actions-like {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.collection-item-actions-like.is-liked {
+    opacity: 1;
+}
+
+.collection-img-wrapper:hover .collection-item-actions-like,
+.collection-img-wrapper:hover .collection-item-actions-delete {
     opacity: 1;
 }
 
