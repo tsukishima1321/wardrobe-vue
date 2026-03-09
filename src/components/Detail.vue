@@ -952,6 +952,7 @@ loadImg();
 .collection-grid-item {
     display: flex;
     flex-direction: column;
+    min-width: 0;
 }
 
 .collection-img-wrapper {
