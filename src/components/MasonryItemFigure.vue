@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { Collection } from '@element-plus/icons-vue'
+
 const { src, figcaption, oriSrc, checked, isCollection } = defineProps({
     src: {
         type: String,
@@ -52,7 +53,7 @@ const changed = () => {
 <template>
     <figure class="masonry-item">
         <div class="img-wrapper">
-            <img :src="src" @click="clicked">
+            <img :src="src" @click="clicked" :onerror="(e : any) => { e.target.src = '/placeholder.png'; e.onerror = null }" />
             <div v-if="isCollection" class="collection-badge">
                 <el-icon><Collection /></el-icon>
             </div>

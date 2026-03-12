@@ -3,7 +3,8 @@ import { ref, computed, onMounted, onUpdated, useTemplateRef, watch } from 'vue'
 import { useRouter } from 'vue-router';
 import Masonry from 'masonry-layout';
 import { debounce } from 'lodash';
-import { ElMessage, ElMessageBox, ElDrawer } from 'element-plus';
+import { ElMessage, ElMessageBox, ElDrawer, ElProgress, ElIcon } from 'element-plus';
+import { Close } from '@element-plus/icons-vue';
 import { GetBlobImgSrc } from "@/api/token";
 import { deleteImage, deleteCollection, getSearchHints, searchImages, listCollectionImages } from "@/api/componentRequests";
 
@@ -71,6 +72,9 @@ const isLoading = ref(false);
 const keywordsHint = ref<string[]>([]);
 const propertiesHint = ref<string[]>([]);
 const showMobileFilter = ref(false);
+
+// Download progress
+const downloadProgress = ref({ visible: false, total: 0, completed: 0 });
 
 // Computed
 const hasSelection = computed(() => blobImgList.value.some(item => item.checked));
@@ -216,6 +220,11 @@ const handleDownload = async () => {
         return;
     }
 
+    if (downloadProgress.value.visible) {
+        ElMessage.info('已有下载任务正在进行中，请先等待完成');
+        return;
+    }
+
     // Collect all hrefs to download, expanding collections
     const downloadHrefs: string[] = [];
     for (const item of selectedItems) {
@@ -240,12 +249,24 @@ const handleDownload = async () => {
         }
     }
 
+    if (downloadHrefs.length === 0) return;
+
+    downloadProgress.value = { visible: true, total: downloadHrefs.length, completed: 0 };
+
     for (const href of downloadHrefs) {
-        const link = document.createElement('a');
-        link.href = await GetBlobImgSrc('/imagebed/' + href);
-        link.download = href;
-        link.click();
+        try {
+            const link = document.createElement('a');
+            link.href = await GetBlobImgSrc('/imagebed/' + href);
+            link.download = href;
+            link.click();
+        } finally {
+            downloadProgress.value.completed++;
+        }
     }
+
+    setTimeout(() => {
+        downloadProgress.value.visible = false;
+    }, 2000);
 };
 
 const selectAll = () => {
@@ -369,6 +390,24 @@ onMounted(() => {
 
             <Pagination :maxPage="totalPage" @pageChanged="pageChanged" />
         </main>
+
+        <!-- Download progress float -->
+        <Transition name="slide-up">
+            <div v-if="downloadProgress.visible" class="download-progress">
+                <div class="download-progress-header">
+                    <span>下载进度</span>
+                    <el-icon class="download-progress-close" @click="downloadProgress.visible = false"><Close /></el-icon>
+                </div>
+                <el-progress
+                    :percentage="downloadProgress.total ? Math.round(downloadProgress.completed / downloadProgress.total * 100) : 0"
+                    :stroke-width="10"
+                    :status="downloadProgress.completed >= downloadProgress.total ? 'success' : undefined"
+                />
+                <div class="download-progress-text">
+                    {{ downloadProgress.completed }} / {{ downloadProgress.total }} 张
+                </div>
+            </div>
+        </Transition>
     </div>
 </template>
 
@@ -414,6 +453,55 @@ onMounted(() => {
 
 .masonry {
     margin: 0 auto;
+}
+
+.download-progress {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 280px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    padding: 16px;
+    z-index: 2000;
+}
+
+.download-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-weight: 600;
+    font-size: 14px;
+    color: #303133;
+}
+
+.download-progress-close {
+    cursor: pointer;
+    color: #909399;
+}
+
+.download-progress-close:hover {
+    color: #303133;
+}
+
+.download-progress-text {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #909399;
+    text-align: right;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+    transition: all 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+    transform: translateY(20px);
+    opacity: 0;
 }
 
 @media (max-width: 768px) {

@@ -673,9 +673,8 @@ loadImg();
 /* Reset & Layout */
 .layout-container {
     display: flex;
-    margin: 0 auto;
     height: calc(100vh - 60px);
-    width: 100vw;
+    width: 100%;
     background-color: #fff;
 }
 
