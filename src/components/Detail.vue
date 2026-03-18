@@ -469,7 +469,7 @@ loadImg();
                     <el-button-group>
                         <el-button :icon="ZoomOut" circle @click="zoomOut" :disabled="zoomLevel <= minZoom" />
                         <el-button @click="resetZoom" :disabled="zoomLevel === 1">{{ Math.round(zoomLevel * 100)
-                        }}%</el-button>
+                            }}%</el-button>
                         <el-button :icon="ZoomIn" circle @click="zoomIn" :disabled="zoomLevel >= maxZoom" />
                     </el-button-group>
                 </div>
@@ -502,7 +502,8 @@ loadImg();
                                     </template>
                                 </el-image>
                                 <div class="collection-item-actions-like" :class="{ 'is-liked': item.liked }">
-                                    <el-button :type="item.liked ? 'warning' : 'default'" :icon="item.liked ? StarFilled : Star" circle size="small"
+                                    <el-button :type="item.liked ? 'warning' : 'default'"
+                                        :icon="item.liked ? StarFilled : Star" circle size="small"
                                         @click.stop="handleLikeCollection(item.image_href)" />
                                 </div>
                                 <div class="collection-item-actions-delete">
@@ -519,7 +520,8 @@ loadImg();
                 </div>
 
                 <!-- Add images dialog -->
-                <el-dialog v-model="addImageDialogVisible" title="向合集添加图片" width="500px">
+                <el-dialog v-model="addImageDialogVisible" title="向合集添加图片" width="min(90vw,500px)"
+                    class="add-image-dialog">
                     <el-upload drag multiple :auto-upload="false" :on-change="handleAddImageFiles" accept="image/*">
                         <el-icon class="el-icon--upload">
                             <UploadIcon />
@@ -533,7 +535,8 @@ loadImg();
                             <el-progress :percentage="addTotal > 0 ? Math.round(addProgress / addTotal * 100) : 0"
                                 :format="() => `${addProgress} / ${addTotal}`" :stroke-width="20" :text-inside="true" />
                         </div>
-                        <el-button @click="addImageDialogVisible = false; selectedFiles = []" :disabled="addingImages">取消</el-button>
+                        <el-button @click="addImageDialogVisible = false; selectedFiles = []"
+                            :disabled="addingImages">取消</el-button>
                         <el-button type="primary" @click="submitAddImages" :loading="addingImages">
                             上传 {{ selectedFiles.length }} 张图片
                         </el-button>
