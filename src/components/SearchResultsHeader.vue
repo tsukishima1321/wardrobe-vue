@@ -94,7 +94,7 @@ const toggleSelectAll = () => {
                     <el-button type="success" plain :icon="Download" circle @click="$emit('download')" />
                 </div>
 
-                <el-button :type="isAllSelected ? 'primary' : 'default'" plain @click="toggleSelectAll">
+                <el-button v-if=isPictureMode :type="isAllSelected ? 'primary' : 'default'" plain @click="toggleSelectAll">
                     {{ isAllSelected ? 'Deselect All' : 'Select All' }}
                 </el-button>
 

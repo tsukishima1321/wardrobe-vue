@@ -133,7 +133,6 @@ export interface SavedSearchParams {
     searchByContent: boolean;
     sortBy: string;
     sortOrder: string;
-    page: number;
     keywords: string[];
     properties: Array<{ name: string; value: string }>;
     excludedKeywords: string[];

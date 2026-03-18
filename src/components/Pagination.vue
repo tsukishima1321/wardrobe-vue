@@ -19,6 +19,14 @@ const disabled = ref(false)
 const handleCurrentChange = (val: number) => {
     emits('pageChanged', val);
 }
+
+const resetCurrentPage = () => {
+    currentPage.value = 1;
+}
+
+defineExpose({
+    resetCurrentPage
+})
 </script>
 
 <template>

@@ -22,7 +22,6 @@ export interface SearchParams {
     searchByContent: boolean;
     sortBy: string;
     sortOrder: string;
-    page: number;
     keywords: string[];
     properties: Array<{ name: string; value: string }>;
     excludedKeywords: string[];
@@ -56,13 +55,19 @@ const searchParams = ref<SearchParams>({
     searchByContent: false,
     sortBy: 'date',
     sortOrder: 'desc',
-    page: 1,
     keywords: [],
     properties: [],
     excludedKeywords: [],
     excludedProperties: [],
     propertiesPrecise: false
 });
+const page = ref(1);
+
+type PaginationExposed = {
+    resetCurrentPage: () => void;
+};
+
+const paginationRef = ref<PaginationExposed | null>(null);
 
 const blobImgList = ref<BlobImgItem[]>([]);
 const totalPage = ref(1);
@@ -131,12 +136,17 @@ const updateSearchHint = debounce(async () => {
     propertiesHint.value = data.properties;
 }, 300);
 
-const updateSearch = debounce(async () => {
+const updateSearch = debounce(async (resetpage: boolean = true) => {
     isLoading.value = true;
+
+    if (resetpage) {
+        paginationRef.value?.resetCurrentPage();
+        page.value = 1;
+    }
 
     const para = {
         searchKey: searchParams.value.searchword,
-        page: searchParams.value.page,
+        page: page.value,
         dateFrom: searchParams.value.dateFrom,
         dateTo: searchParams.value.dateTo,
         byName: searchParams.value.searchByTitle,
@@ -207,7 +217,7 @@ const handleDelete = async () => {
             }
         }
         ElMessage.success('删除成功');
-        updateSearch();
+        updateSearch(false);
     } catch (e) {
         // Cancelled
     }
@@ -286,8 +296,8 @@ const toggleSelection = () => {
 };
 
 const pageChanged = (newPage: number) => {
-    searchParams.value.page = newPage;
-    updateSearch();
+    page.value = newPage;
+    updateSearch(false);
 };
 
 const imgClicked = (src: string) => {
@@ -310,12 +320,11 @@ const handleRowDoubleClick = (row: BlobImgItem) => {
 };
 
 watch(searchParams, () => {
-    updateSearch();
+    updateSearch(true);
 }, { deep: true });
 
 watch(isPictureMode, (newVal) => {
-    searchParams.value.page = 1;
-    updateSearch();
+    updateSearch(true);
     if (newVal) {
         // Wait for DOM update
         setTimeout(() => {
@@ -362,8 +371,8 @@ onMounted(() => {
                     <div ref="masonryContainer" class="masonry">
                         <MasonryItemFigure v-for="blobImg in blobImgList" :key="blobImg.oriSrc" :src="blobImg.blobSrc"
                             :oriSrc="blobImg.oriSrc" :figcaption="blobImg.title" :checked="blobImg.checked"
-                            :isCollection="blobImg.isCollection"
-                            @clicked="imgClicked" @selected="imgSelected" @unselected="imgUnSelected" />
+                            :isCollection="blobImg.isCollection" @clicked="imgClicked" @selected="imgSelected"
+                            @unselected="imgUnSelected" />
                     </div>
                 </div>
 
@@ -388,7 +397,7 @@ onMounted(() => {
                 </div>
             </div>
 
-            <Pagination :maxPage="totalPage" @pageChanged="pageChanged" />
+            <Pagination ref="paginationRef" :maxPage="totalPage" @pageChanged="pageChanged" />
         </main>
 
         <!-- Download progress float -->
@@ -396,13 +405,14 @@ onMounted(() => {
             <div v-if="downloadProgress.visible" class="download-progress">
                 <div class="download-progress-header">
                     <span>下载进度</span>
-                    <el-icon class="download-progress-close" @click="downloadProgress.visible = false"><Close /></el-icon>
+                    <el-icon class="download-progress-close" @click="downloadProgress.visible = false">
+                        <Close />
+                    </el-icon>
                 </div>
                 <el-progress
                     :percentage="downloadProgress.total ? Math.round(downloadProgress.completed / downloadProgress.total * 100) : 0"
                     :stroke-width="10"
-                    :status="downloadProgress.completed >= downloadProgress.total ? 'success' : undefined"
-                />
+                    :status="downloadProgress.completed >= downloadProgress.total ? 'success' : undefined" />
                 <div class="download-progress-text">
                     {{ downloadProgress.completed }} / {{ downloadProgress.total }} 张
                 </div>
