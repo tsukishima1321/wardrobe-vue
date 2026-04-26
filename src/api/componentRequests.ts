@@ -161,6 +161,59 @@ export interface ImagePredictResponse {
     properties: Array<{ name: string; value: string }>;
 }
 
+export type TimelineGranularity = 'day' | 'month' | 'year';
+
+export interface TimelineTitleRelation {
+    word: string;
+    count: number;
+}
+
+export interface TimelineKeywordRelation {
+    keyword: string;
+    count: number;
+}
+
+export interface TimelinePropertyRelation {
+    propertyName: string;
+    value: string;
+    count: number;
+}
+
+export interface TimelineSummary {
+    matchedImageCount: number;
+    bucketCount: number;
+    firstDate: string | null;
+    lastDate: string | null;
+    topTitleRelations: TimelineTitleRelation[];
+    topKeywordRelations: TimelineKeywordRelation[];
+    topPropertyRelations: TimelinePropertyRelation[];
+}
+
+export interface TimelineBucket {
+    period: string;
+    startDate: string;
+    endDate: string;
+    matchedImageCount: number;
+    titleRelations: TimelineTitleRelation[];
+    keywordRelations: TimelineKeywordRelation[];
+    propertyRelations: TimelinePropertyRelation[];
+    sampleTitles: string[];
+}
+
+export interface TimelineReportRequest {
+    word: string;
+    granularity?: TimelineGranularity;
+    topN?: number;
+    match_mode?: 'title_keyword_property' | 'title_only';
+}
+
+export interface TimelineReportResponse {
+    word: string;
+    granularity: TimelineGranularity;
+    summary: TimelineSummary;
+    timeline: TimelineBucket[];
+}
+
 export const getBackupList = async (): Promise<BackupRecord[]> => {
     return fetchDataAutoRetry('/api/backup/list/', {}, 'GET') as Promise<BackupRecord[]>;
 };
@@ -336,6 +389,15 @@ export const reprocessImage = async (src: string): Promise<void> => {
 
 export const predictImage = async (description: string): Promise<ImagePredictResponse> => {
     return fetchDataAutoRetry('/api/metadata/predict/', { description }, 'POST') as Promise<ImagePredictResponse>;
+};
+
+export const getTimelineReport = async (params: TimelineReportRequest): Promise<TimelineReportResponse> => {
+    return fetchDataAutoRetry('/api/report/timeline/', {
+        word: params.word,
+        granularity: params.granularity ?? 'month',
+        topN: params.topN ?? 2,
+        match_mode: params.match_mode ?? 'title_keyword_property',
+    }, 'POST') as Promise<TimelineReportResponse>;
 };
 
 export const listUserDict = async (): Promise<string[]> => {
