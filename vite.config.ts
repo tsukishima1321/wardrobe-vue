@@ -15,4 +15,25 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('echarts')) {
+              return 'echarts';
+            }
+            if (id.includes('lodash')) {
+              return 'lodash';
+            }
+            if (id.includes('element-plus')) {
+              return 'element-plus';
+            } 
+            return 'vendor';
+          }
+        },
+      },
+    },
+  },
 })
