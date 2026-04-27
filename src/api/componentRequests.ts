@@ -214,6 +214,101 @@ export interface TimelineReportResponse {
     timeline: TimelineBucket[];
 }
 
+export interface HomeDiscoveryPicture {
+    src: string;
+    title: string;
+    date: string;
+    isCollection: boolean;
+    keywords: string[];
+    properties: ImageProperty[];
+    distanceDays?: number;
+}
+
+export interface HomeDiscoveryDiary {
+    id: number;
+    date: string;
+    text: string;
+    preview: string;
+    distanceDays?: number;
+}
+
+export interface HomeDiscoveryHeroStats {
+    matchedPictures: number;
+    matchedDiaries: number;
+    yearRange: number[];
+}
+
+export interface HomeDiscoveryHeroModule {
+    type: string;
+    title: string;
+    subtitle: string;
+    windowDays: number;
+    exactMatch: boolean;
+    stats: HomeDiscoveryHeroStats;
+    pictures: HomeDiscoveryPicture[];
+    diaries: HomeDiscoveryDiary[];
+    empty: boolean;
+}
+
+export interface HomeDiscoveryTheme {
+    kind: string;
+    label: string;
+    relatedCount: number;
+    propertyName?: string;
+    propertyValue?: string;
+}
+
+export interface HomeDiscoveryRemixModule {
+    type: string;
+    title: string;
+    subtitle: string;
+    empty: boolean;
+    theme: HomeDiscoveryTheme;
+    anchor: HomeDiscoveryPicture | null;
+    pictures: HomeDiscoveryPicture[];
+    diaries: HomeDiscoveryDiary[];
+}
+
+export interface HomeDiscoveryDigestStats {
+    totalPictures: number;
+    picturesThisMonth: number;
+    diariesThisMonth: number;
+    daysSinceLastDiary: number | null;
+    blankPictures: number;
+    unreadMessages: number;
+    lastBackupAt: string | null;
+}
+
+export interface HomeDiscoveryTopKeyword {
+    keyword: string;
+    count: number;
+}
+
+export interface HomeDiscoveryReminder {
+    text: string;
+    severity?: string;
+    link?: string;
+}
+
+export interface HomeDiscoveryDigestModule {
+    type: string;
+    title: string;
+    subtitle: string;
+    stats: HomeDiscoveryDigestStats;
+    topKeywords: HomeDiscoveryTopKeyword[];
+    highlights: string[];
+    reminders: HomeDiscoveryReminder[];
+}
+
+export interface HomeDiscoveryResponse {
+    generatedAt: string;
+    modules: {
+        hero: HomeDiscoveryHeroModule;
+        remix: HomeDiscoveryRemixModule;
+        digest: HomeDiscoveryDigestModule;
+    };
+}
+
 export const getBackupList = async (): Promise<BackupRecord[]> => {
     return fetchDataAutoRetry('/api/backup/list/', {}, 'GET') as Promise<BackupRecord[]>;
 };
@@ -398,6 +493,10 @@ export const getTimelineReport = async (params: TimelineReportRequest): Promise<
         topN: params.topN ?? 2,
         match_mode: params.match_mode ?? 'title_keyword_property',
     }, 'POST') as Promise<TimelineReportResponse>;
+};
+
+export const getHomeDiscovery = async (): Promise<HomeDiscoveryResponse> => {
+    return fetchDataAutoRetry('/api/home/discovery/', {}, 'GET') as Promise<HomeDiscoveryResponse>;
 };
 
 export const listUserDict = async (): Promise<string[]> => {

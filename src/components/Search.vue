@@ -46,20 +46,63 @@ interface BlobImgItem {
 
 const router = useRouter();
 
+const getQueryValue = (key: string): string | string[] | undefined => {
+    const value = router.currentRoute.value.query[key];
+    if (Array.isArray(value)) {
+        return value.map(String);
+    }
+    if (value == null) {
+        return undefined;
+    }
+    return String(value);
+};
+
+const parseQueryArray = (key: string): string[] => {
+    const value = getQueryValue(key);
+    if (!value) {
+        return [];
+    }
+    return Array.isArray(value) ? value : [value];
+};
+
+const parseQueryProperties = (): Array<{ name: string; value: string }> => {
+    return parseQueryArray('properties')
+        .map((item) => {
+            try {
+                const parsed = JSON.parse(item) as { name?: string; value?: string };
+                if (!parsed.name || !parsed.value) {
+                    return null;
+                }
+                return { name: parsed.name, value: parsed.value };
+            } catch {
+                return null;
+            }
+        })
+        .filter((item): item is { name: string; value: string } => item !== null);
+};
+
+const parseQueryBoolean = (key: string, fallback = false): boolean => {
+    const value = getQueryValue(key);
+    if (value == null || Array.isArray(value)) {
+        return fallback;
+    }
+    return value === 'true';
+};
+
 // State
 const searchParams = ref<SearchParams>({
     searchword: (router.currentRoute.value.params.searchword as string) || '',
-    dateFrom: new URLSearchParams(window.location.href.slice(window.location.href.indexOf('?'))).get('dateFrom') || '2000-01-01',
-    dateTo: new URLSearchParams(window.location.href.slice(window.location.href.indexOf('?'))).get('dateTo') || new Date().toISOString().split('T')[0],
+    dateFrom: (getQueryValue('dateFrom') as string | undefined) || '2000-01-01',
+    dateTo: (getQueryValue('dateTo') as string | undefined) || new Date().toISOString().split('T')[0],
     searchByTitle: true,
     searchByContent: false,
     sortBy: 'date',
     sortOrder: 'desc',
-    keywords: [],
-    properties: [],
-    excludedKeywords: [],
+    keywords: parseQueryArray('keywords'),
+    properties: parseQueryProperties(),
+    excludedKeywords: parseQueryArray('excludedKeywords'),
     excludedProperties: [],
-    propertiesPrecise: false
+    propertiesPrecise: parseQueryBoolean('propertiesPrecise', false)
 });
 const page = ref(1);
 

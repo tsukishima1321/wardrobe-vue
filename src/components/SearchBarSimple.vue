@@ -23,7 +23,6 @@ function sendValue() {
 
 <style scoped>
 .search {
-    padding: 10px;
     width: 100%;
 }
 

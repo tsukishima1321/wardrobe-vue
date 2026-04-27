@@ -92,9 +92,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { createDiary, deleteDiaryById, searchDiaryOverview, updateDiary } from "@/api/componentRequests";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Edit, Delete } from "@element-plus/icons-vue";
 import Pagination from "./Pagination.vue";
@@ -102,6 +102,8 @@ import DiaryFilterPanel, { type DiarySearchParams } from "./DiaryFilterPanel.vue
 import DiaryResultsHeader from "./DiaryResultsHeader.vue";
 
 const router = useRouter();
+const route = useRoute();
+const DIARY_FOCUS_STORAGE_KEY = "wardrobe-focus-diary";
 
 // State
 const showMobileFilter = ref(false);
@@ -136,6 +138,8 @@ const viewDialogVisible = ref(false);
 const isEditing = ref(false);
 const saving = ref(false);
 const selectedDiary = ref<DiaryItem | null>(null);
+const pendingFocusedDiary = ref<DiaryItem | null>(null);
+const pendingFocusedDiaryId = ref<number | null>(null);
 
 // Form Data
 const diaryForm = ref({
@@ -143,6 +147,79 @@ const diaryForm = ref({
   date: new Date().toISOString().split("T")[0],
   text: "",
 });
+
+const parseDiaryIdQuery = (): number | null => {
+  const raw = route.query.diaryId;
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const parseDiaryDateQuery = (): string => {
+  const raw = route.query.diaryDate;
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return typeof value === "string" ? value : "";
+};
+
+const readStoredFocusedDiary = (): DiaryItem | null => {
+  const raw = sessionStorage.getItem(DIARY_FOCUS_STORAGE_KEY);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<DiaryItem>;
+    if (!parsed.id || !parsed.date || !parsed.text) {
+      return null;
+    }
+    return {
+      id: parsed.id,
+      date: parsed.date,
+      text: parsed.text,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const clearFocusedDiaryContext = () => {
+  pendingFocusedDiary.value = null;
+  pendingFocusedDiaryId.value = null;
+  sessionStorage.removeItem(DIARY_FOCUS_STORAGE_KEY);
+
+  const nextQuery = { ...route.query };
+  delete nextQuery.diaryId;
+  delete nextQuery.diaryDate;
+  router.replace({ query: nextQuery });
+};
+
+const applyFocusedDiaryRoute = () => {
+  pendingFocusedDiaryId.value = parseDiaryIdQuery();
+  pendingFocusedDiary.value = readStoredFocusedDiary();
+
+  const diaryDate = parseDiaryDateQuery();
+  if (diaryDate) {
+    searchParams.value.dateFrom = diaryDate;
+    searchParams.value.dateTo = diaryDate;
+    searchParams.value.page = 1;
+  }
+};
+
+const openFocusedDiaryIfNeeded = () => {
+  if (!pendingFocusedDiaryId.value && !pendingFocusedDiary.value) {
+    return;
+  }
+
+  const matchedDiary = pendingFocusedDiaryId.value != null
+    ? textList.value.find((item) => item.id === pendingFocusedDiaryId.value) ?? null
+    : null;
+
+  const targetDiary = matchedDiary ?? pendingFocusedDiary.value;
+  if (!targetDiary) {
+    return;
+  }
+
+  viewDiary(targetDiary);
+  clearFocusedDiaryContext();
+};
 
 // Search Diaries
 const searchDiaries = async () => {
@@ -158,6 +235,8 @@ const searchDiaries = async () => {
     if (resultsArea.value) {
       resultsArea.value.scrollTop = 0;
     }
+
+    openFocusedDiaryIfNeeded();
   } catch (error) {
     console.error("Search failed:", error);
     ElMessage.error("Failed to load diaries");
@@ -288,8 +367,25 @@ const deleteDiary = (diary: DiaryItem) => {
 };
 
 onMounted(() => {
+  applyFocusedDiaryRoute();
   searchDiaries();
 });
+
+watch(
+  () => [route.query.diaryId, route.query.diaryDate],
+  ([nextDiaryId, nextDiaryDate], [prevDiaryId, prevDiaryDate]) => {
+    if (nextDiaryId === prevDiaryId && nextDiaryDate === prevDiaryDate) {
+      return;
+    }
+
+    if (!nextDiaryId && !nextDiaryDate) {
+      return;
+    }
+
+    applyFocusedDiaryRoute();
+    searchDiaries();
+  }
+);
 </script>
 
 <style scoped>
