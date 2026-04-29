@@ -7,9 +7,9 @@ import {
     Fold,
 } from '@element-plus/icons-vue'
 import { ref } from 'vue'
-import ManageOcr from './ManageOcr.vue'
-import ManageBackup from './ManageBackup.vue'
-import ManageUserDict from './ManageUserDict.vue'
+import ManageOcr from './manage/ManageOcr.vue'
+import ManageBackup from './manage/ManageBackup.vue'
+import ManageUserDict from './manage/ManageUserDict.vue'
 
 const activeIndex = ref('1');
 const isMenuCollapsed = ref(false);

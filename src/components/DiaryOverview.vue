@@ -97,9 +97,9 @@ import { createDiary, deleteDiaryById, searchDiaryOverview, updateDiary } from "
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Edit, Delete } from "@element-plus/icons-vue";
-import Pagination from "./Pagination.vue";
-import DiaryFilterPanel, { type DiarySearchParams } from "./DiaryFilterPanel.vue";
-import DiaryResultsHeader from "./DiaryResultsHeader.vue";
+import Pagination from "./common/Pagination.vue";
+import DiaryFilterPanel, { type DiarySearchParams } from "./diary/DiaryFilterPanel.vue";
+import DiaryResultsHeader from "./diary/DiaryResultsHeader.vue";
 
 const router = useRouter();
 const route = useRoute();

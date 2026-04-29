@@ -9,7 +9,7 @@ export interface PropItem {
     value: string;
 }
 
-import { type SearchParams } from './Search.vue';
+import { type SearchParams } from '../Search.vue';
 
 const props = defineProps<{
     modelValue: SearchParams;

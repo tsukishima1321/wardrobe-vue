@@ -8,10 +8,10 @@ import { Close } from '@element-plus/icons-vue';
 import { GetBlobImgSrc } from "@/api/token";
 import { deleteImage, deleteCollection, getSearchHints, searchImages, listCollectionImages } from "@/api/componentRequests";
 
-import SearchFilterPanel from './SearchFilterPanel.vue';
-import SearchResultsHeader from './SearchResultsHeader.vue';
-import Pagination from './Pagination.vue';
-import MasonryItemFigure from './MasonryItemFigure.vue';
+import SearchFilterPanel from './search/SearchFilterPanel.vue';
+import SearchResultsHeader from './search/SearchResultsHeader.vue';
+import Pagination from './common/Pagination.vue';
+import MasonryItemFigure from './search/MasonryItemFigure.vue';
 
 // Interfaces
 export interface SearchParams {
