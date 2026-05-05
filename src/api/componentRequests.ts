@@ -547,6 +547,10 @@ export const likeCollectionImage = async (src: string, image_href: string, liked
     return fetchDataAutoRetry('/api/collection/like/', { src, image_href, liked }, 'POST') as Promise<{ status: string, liked: boolean }>;
 };
 
+export const mergeCollection = async (src: string[]): Promise<{ status: string; href: string }> => {
+    return fetchDataAutoRetry('/api/collection/merge/', { src }, 'POST') as Promise<{ status: string; href: string }>;
+};
+
 export const loginWithPassword = async (payload: LoginRequest): Promise<TokenResponse> => {
     const response = await fetch('/api/token/', {
         method: 'POST',

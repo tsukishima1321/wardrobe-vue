@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { ElInput, ElButton, ElSelect, ElOption, ElRadioGroup, ElRadioButton, ElIcon } from 'element-plus';
-import { Search, Delete, Download, Grid, List, Filter } from '@element-plus/icons-vue';
+import { Search, Delete, Download, Grid, List, Filter, FolderAdd } from '@element-plus/icons-vue';
 
 const props = defineProps<{
     searchword: string;
@@ -21,6 +21,7 @@ const emit = defineEmits<{
     (e: 'search'): void;
     (e: 'delete'): void;
     (e: 'download'): void;
+    (e: 'mergeCollection'): void;
     (e: 'selectAll'): void;
     (e: 'selectNone'): void;
     (e: 'openMobileFilter'): void;
@@ -90,6 +91,7 @@ const toggleSelectAll = () => {
             <div class="right-controls">
                 <div v-if="hasSelection" class="batch-actions">
                     <span class="selection-info">Selected</span>
+                    <el-button plain :icon="FolderAdd" @click="$emit('mergeCollection')" style="margin-left: 12px;">合并为合集</el-button>
                     <el-button type="danger" plain :icon="Delete" circle @click="$emit('delete')" />
                     <el-button type="success" plain :icon="Download" circle @click="$emit('download')" />
                 </div>

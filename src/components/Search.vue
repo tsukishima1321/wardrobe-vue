@@ -6,7 +6,7 @@ import { debounce } from 'lodash';
 import { ElMessage, ElMessageBox, ElDrawer, ElProgress, ElIcon } from 'element-plus';
 import { Close } from '@element-plus/icons-vue';
 import { GetBlobImgSrc } from "@/api/token";
-import { deleteImage, deleteCollection, getSearchHints, searchImages, listCollectionImages } from "@/api/componentRequests";
+import { deleteImage, deleteCollection, getSearchHints, searchImages, listCollectionImages, mergeCollection } from "@/api/componentRequests";
 
 import SearchFilterPanel from './search/SearchFilterPanel.vue';
 import SearchResultsHeader from './search/SearchResultsHeader.vue';
@@ -322,6 +322,44 @@ const handleDownload = async () => {
     }, 2000);
 };
 
+const handleMergeCollection = async () => {
+    const selectedItems = blobImgList.value.filter(item => item.checked);
+    if (selectedItems.length < 2) {
+        ElMessage.warning('请至少选择 2 张图片');
+        return;
+    }
+
+    const collectionItems = selectedItems.filter(item => item.isCollection);
+    if (collectionItems.length > 0) {
+        ElMessage.warning('已选内容包含合集，不能再次合并');
+        return;
+    }
+
+    try {
+        await ElMessageBox.confirm(
+            `确定将这 ${selectedItems.length} 张图片合并为合集吗？合集标题和日期将沿用第一张图片。`,
+            '合并为合集',
+            {
+                confirmButtonText: '确定合并',
+                cancelButtonText: '取消',
+                type: 'warning'
+            }
+        );
+
+        const { href } = await mergeCollection(selectedItems.map(item => item.oriSrc));
+        ElMessage.success('已合并为合集');
+        updateSearch(false);
+
+        const newWindow = router.resolve('/detail/' + href);
+        window.open(newWindow.href, '_blank');
+    } catch (error) {
+        if (error !== 'cancel') {
+            console.error('Merge collection failed:', error);
+            ElMessage.error('合并为合集失败，请重试');
+        }
+    }
+};
+
 const selectAll = () => {
     blobImgList.value.forEach(item => item.checked = true);
 };
@@ -406,7 +444,7 @@ onMounted(() => {
                 @update:searchword="val => searchParams.searchword = val"
                 @update:sortBy="val => searchParams.sortBy = val"
                 @update:sortOrder="val => searchParams.sortOrder = val" @search="updateSearch" @delete="handleDelete"
-                @download="handleDownload" @selectAll="selectAll" @selectNone="selectNone"
+                @download="handleDownload" @mergeCollection="handleMergeCollection" @selectAll="selectAll" @selectNone="selectNone"
                 @openMobileFilter="showMobileFilter = true" />
 
             <div class="results-area" v-loading="isLoading">
