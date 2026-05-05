@@ -55,9 +55,13 @@ const keywords = ref<string[]>([]);
 const selectedKeyword = ref('');
 const stats = ref({
     total: 0,
+    totalExpanded: 0,
     newMonth: 0,
+    newMonthExpanded: 0,
     newYear: 0,
+    newYearExpanded: 0,
     types: [] as TypeStatistics[],
+    typesExpanded: [] as TypeStatistics[],
 });
 const latestDiary = ref<DiaryItem | null>(null);
 
@@ -257,17 +261,16 @@ const fetchRandomImage = async () => {
 
 const fetchStats = async () => {
     const res = await getStatistics() as StatResponse;
-    const sortedTypes = [...res.types].sort((a, b) => (
-        (b.lastMonthAmount - a.lastMonthAmount) * 1000 +
-        (b.lastYearAmount - a.lastYearAmount) * 10 +
-        (b.totalAmount - a.totalAmount)
-    ));
 
     stats.value = {
         total: res.overall.totalAmount,
+        totalExpanded: res.overallExpanded.totalAmount,
         newMonth: res.overall.lastMonthAmount,
+        newMonthExpanded: res.overallExpanded.lastMonthAmount,
         newYear: res.overall.lastYearAmount,
-        types: sortedTypes,
+        newYearExpanded: res.overallExpanded.lastYearAmount,
+        types: res.types,
+        typesExpanded: res.typesExpanded,
     };
 };
 

@@ -30,6 +30,12 @@ export interface StatResponse {
         lastMonthAmount: number;
     };
     types: Array<TypeStatistics>;
+    overallExpanded: {
+        totalAmount: number;
+        lastYearAmount: number;
+        lastMonthAmount: number;
+    };
+    typesExpanded: Array<TypeStatistics>;
 }
 
 export interface DiaryItem {
