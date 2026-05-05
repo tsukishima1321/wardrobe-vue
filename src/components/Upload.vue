@@ -313,10 +313,6 @@ const removeFile = (index: number) => {
 const handlePredict = async () => {
     if (!imgTitle.value.trim()) return;
 
-    // Only predict if keywords/properties are empty? Or always merge?
-    // User asked to "automatically fill", usually implies assist.
-    // Let's merge.
-
     const loadingInstance = ElLoading.service({
         target: '.details-panel',
         text: 'AI 预测中...',
@@ -325,7 +321,7 @@ const handlePredict = async () => {
 
     try {
         const res = await predictImage(imgTitle.value);
-        
+
         if (res.keywords) {
             res.keywords.forEach(k => {
                 if (!keywords.value.includes(k)) {
@@ -345,14 +341,13 @@ const handlePredict = async () => {
                 }
             });
         }
-        
+
         if ((res.keywords && res.keywords.length > 0) || (res.properties && res.properties.length > 0)) {
             ElMessage.success('已自动填充预测信息');
         }
-        
+
     } catch (e) {
         console.error('Predict failed', e);
-        // Don't disturb user too much if auto-fetch fails
     } finally {
         loadingInstance.close();
     }
@@ -392,19 +387,24 @@ const submitCurrent = async () => {
         await uploadImage(formData);
         ElMessage.success('上传成功');
 
+        if (isOCR.value) {
+            await newOcrMission(currentFile.value.src || '');
+            await executeOcrMission(currentFile.value.src || '');
+        }
+
         // Remove current file and move to next
         removeFile(currentIndex.value);
 
     } catch (error: unknown) {
-            if (error instanceof ResponseWithError) {
-                ElMessage.warning(`上传失败: ${currentFile.value.file.name}, ${error.data?.md5}, ${error.data?.message || '未知错误'}`);
-            } else {
-                ElMessage.error(`上传失败: ${currentFile.value.file.name}, 未知错误。`);
-            }
-
-        } finally {
-            loadingInstance.close();
+        if (error instanceof ResponseWithError) {
+            ElMessage.warning(`上传失败: ${currentFile.value.file.name}, ${error.data?.md5}, ${error.data?.message || '未知错误'}`);
+        } else {
+            ElMessage.error(`上传失败: ${currentFile.value.file.name}, 未知错误。`);
         }
+
+    } finally {
+        loadingInstance.close();
+    }
 };
 
 const submitReprocess = async () => {
@@ -582,7 +582,7 @@ const focusPropertyValueInput = () => {
                 <el-button-group>
                     <el-button :icon="ZoomOut" circle @click="zoomOut" :disabled="zoomLevel <= minZoom" />
                     <el-button @click="resetZoom" :disabled="zoomLevel === 1">{{ Math.round(zoomLevel * 100)
-                    }}%</el-button>
+                        }}%</el-button>
                     <el-button :icon="ZoomIn" circle @click="zoomIn" :disabled="zoomLevel >= maxZoom" />
                 </el-button-group>
             </div>
@@ -627,7 +627,9 @@ const focusPropertyValueInput = () => {
             <div v-if="isCollectionMode" class="panel-content">
                 <div class="section basic-info">
                     <div class="collection-mode-header">
-                        <el-icon class="collection-mode-icon"><Collection /></el-icon>
+                        <el-icon class="collection-mode-icon">
+                            <Collection />
+                        </el-icon>
                         <span>创建图片合集</span>
                     </div>
 
@@ -658,7 +660,9 @@ const focusPropertyValueInput = () => {
                                 @keyup.enter="addKeyword">
                                 <template #append>
                                     <el-button @click="addKeyword" size="small">
-                                        <el-icon><Plus /></el-icon>
+                                        <el-icon>
+                                            <Plus />
+                                        </el-icon>
                                     </el-button>
                                 </template>
                             </el-autocomplete>
@@ -676,14 +680,15 @@ const focusPropertyValueInput = () => {
                             <span class="prop-name">{{ p.name }}</span>
                             <span class="prop-value">{{ p.value }}</span>
                             <el-button link type="danger" size="small" @click="removeProperty(i)">
-                                <el-icon><Delete /></el-icon>
+                                <el-icon>
+                                    <Delete />
+                                </el-icon>
                             </el-button>
                         </div>
                     </div>
                     <div class="add-prop-row">
-                        <el-autocomplete v-model="newPropertyName"
-                            :fetch-suggestions="querySearchProps" placeholder="属性名" style="width: 40%"
-                            @keyup.enter.prevent="focusPropertyValueInput" />
+                        <el-autocomplete v-model="newPropertyName" :fetch-suggestions="querySearchProps"
+                            placeholder="属性名" style="width: 40%" @keyup.enter.prevent="focusPropertyValueInput" />
                         <el-input v-model="newPropertyValue" placeholder="属性值" style="flex: 1"
                             @keyup.enter="addProperty" />
                         <el-button @click="addProperty">添加</el-button>
@@ -694,7 +699,9 @@ const focusPropertyValueInput = () => {
 
                 <el-button type="primary" size="large" @click="submitCollection" :loading="creatingCollection"
                     style="width: 100%;">
-                    <el-icon><Collection /></el-icon> 创建合集
+                    <el-icon>
+                        <Collection />
+                    </el-icon> 创建合集
                 </el-button>
             </div>
 
@@ -968,7 +975,7 @@ const focusPropertyValueInput = () => {
 }
 
 /* When collection mode hides the image viewer, center the panel */
-.layout-container > .details-panel:first-child {
+.layout-container>.details-panel:first-child {
     width: 100%;
     max-width: 600px;
     margin: 0 auto;

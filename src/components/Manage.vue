@@ -10,6 +10,7 @@ import { ref } from 'vue'
 import ManageOcr from './manage/ManageOcr.vue'
 import ManageBackup from './manage/ManageBackup.vue'
 import ManageUserDict from './manage/ManageUserDict.vue'
+import Config from './manage/Config.vue'
 
 const activeIndex = ref('1');
 const isMenuCollapsed = ref(false);
@@ -56,12 +57,19 @@ const toggleMenuCollapse = () => {
                         </el-icon>
                         <span>用户词典</span>
                     </el-menu-item>
+                    <el-menu-item index="4">
+                        <el-icon>
+                            <Expand />
+                        </el-icon>
+                        <span>配置</span>
+                    </el-menu-item>
                 </el-menu>
             </div>
         </el-col>
         <ManageOcr v-if="activeIndex === '1'" />
         <ManageBackup v-if="activeIndex === '2'" />
         <ManageUserDict v-if="activeIndex === '3'" />
+        <Config v-if="activeIndex === '4'" />
     </el-row>
 </template>
 

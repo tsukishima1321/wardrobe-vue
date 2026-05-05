@@ -15,6 +15,11 @@ export class ResponseWithError extends Error {
 
 export async function GetBlobImgSrc(url: string): Promise<string> {
     const token = localStorage.getItem('wardrobe-access-token') || 'default-token';
+    const useLocalImagebed = localStorage.getItem('useLocalImagebed') === 'true';
+    if (useLocalImagebed && url.indexOf('thumbnails') === -1) {
+        const localImagebedPath = localStorage.getItem('localImagebedPath') || '';
+        return `${localImagebedPath}${url}`;
+    }
     try {
         const response = await fetch(url, {
             headers: {
