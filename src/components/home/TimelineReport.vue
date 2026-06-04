@@ -303,9 +303,9 @@ watch(
     <div class="timeline-panel">
         <div class="timeline-panel-header">
             <div>
-                <p class="card-kicker">继续下滑</p>
+                <p class="card-kicker"></p>
                 <h3>时间线报告</h3>
-                <p>信息更密一点的探索工具放在这里，适合带着一个词往下深挖。</p>
+                <p></p>
             </div>
             <div class="timeline-controls">
                 <el-input v-model="timelineWord" placeholder="关键词" clearable class="timeline-word-input"

@@ -384,12 +384,11 @@ const submitCurrent = async () => {
         formData.append('keywords', JSON.stringify(keywords.value));
         formData.append('properties', JSON.stringify(properties.value));
 
-        await uploadImage(formData);
+        const res = await uploadImage(formData);
         ElMessage.success('上传成功');
 
         if (isOCR.value) {
-            await newOcrMission(currentFile.value.src || '');
-            await executeOcrMission(currentFile.value.src || '');
+            await executeOcrMission(res.md5 || '');
         }
 
         // Remove current file and move to next
