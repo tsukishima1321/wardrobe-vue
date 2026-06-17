@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
-import { ref, computed } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { ElMessage, ElLoading, ElInput, ElMessageBox } from 'element-plus';
 import { GetBlobImgSrc } from '../api/token.ts';
 import {
@@ -22,7 +22,7 @@ import {
     likeCollectionImage
 } from '@/api/componentRequests';
 import type { CollectionItem } from '@/api/componentRequests';
-import { ZoomIn, ZoomOut, Refresh, Picture, Edit, Check, Plus, Delete, Collection, Upload as UploadIcon, Star, StarFilled } from '@element-plus/icons-vue';
+import { ZoomIn, ZoomOut, Refresh, Picture, Edit, Check, Plus, Delete, Collection, Upload as UploadIcon, Star, StarFilled, ArrowLeft, ArrowRight } from '@element-plus/icons-vue';
 import { ElImageViewer } from 'element-plus';
 
 const router = useRouter();
@@ -42,8 +42,9 @@ const addingImages = ref(false);
 const addProgress = ref(0);
 const addTotal = ref(0);
 const previewVisible = ref(false);
-const previewList = ref<string[]>([]);
 const previewIndex = ref(0);
+const previewFullSrcs = ref<Record<number, string>>({});
+const originalLoading = ref(false);
 
 interface ImageProperty {
     name: string;
@@ -413,27 +414,111 @@ const handleDeleteThis = async () => {
     }
 };
 
-const openCollectionPreview = async (index: number) => {
-    const loading = ElLoading.service({
-        lock: true,
-        text: '原图加载中...',
-        background: 'rgba(0, 0, 0, 0.7)',
-    });
+const previewCurrentUrl = computed(() => {
+    const idx = previewIndex.value;
+    if (previewFullSrcs.value[idx]) {
+        return previewFullSrcs.value[idx];
+    }
+    const item = collectionItems.value[idx];
+    return item?.blobSrc || '';
+});
+
+const previewUrlList = computed(() => [previewCurrentUrl.value]);
+
+const showViewOriginalBtn = computed(() => {
+    const idx = previewIndex.value;
+    return !previewFullSrcs.value[idx] && !!collectionItems.value[idx]?.blobSrc;
+});
+
+const openCollectionPreview = (index: number) => {
+    const item = collectionItems.value[index];
+    if (!item) return;
+    previewIndex.value = index;
+    previewVisible.value = true;
+};
+
+const navigatePreview = (direction: number) => {
+    const newIndex = previewIndex.value + direction;
+    if (newIndex < 0 || newIndex >= collectionItems.value.length) return;
+    previewIndex.value = newIndex;
+};
+
+const loadCurrentOriginal = async () => {
+    originalLoading.value = true;
+    try {
+        await loadOriginalForIndex(previewIndex.value);
+    } finally {
+        originalLoading.value = false;
+    }
+};
+
+const loadOriginalForIndex = async (index: number) => {
+    if (previewFullSrcs.value[index]) return;
     const item = collectionItems.value[index];
     if (!item) return;
     try {
         const fullSrc = await GetBlobImgSrc("/imagebed/" + item.image_href);
-        previewList.value = [fullSrc];
-        previewIndex.value = 0;
-        previewVisible.value = true;
-    } catch {
-        ElMessage.error('图片加载失败');
-    } finally {
-        loading.close();
-    }
+        previewFullSrcs.value = { ...previewFullSrcs.value, [index]: fullSrc };
+    } catch { }
 };
 
 loadImg();
+
+let injectedBtn: HTMLButtonElement | null = null;
+
+const injectViewOriginalBtn = () => {
+    const toolbar = document.querySelector('.el-image-viewer__actions__inner');
+    if (!toolbar || injectedBtn) return;
+
+    const btn = document.createElement('button');
+    btn.className = 'preview-original-inline';
+    btn.textContent = '查看原图';
+    btn.addEventListener('click', loadCurrentOriginal);
+    btn.style.cssText = `
+        background: transparent; border: none; color: #fff; cursor: pointer;
+        font-size: 13px; padding: 0 8px; display: inline-flex; align-items: center;
+        height: 28px; border-left: 1px solid rgba(255,255,255,.2); margin-left: 4px;
+    `;
+    toolbar.appendChild(btn);
+    injectedBtn = btn;
+};
+
+const removeViewOriginalBtn = () => {
+    if (injectedBtn?.parentNode) {
+        injectedBtn.parentNode.removeChild(injectedBtn);
+    }
+    injectedBtn = null;
+};
+
+watch(previewVisible, (visible) => {
+    if (visible) {
+        const tryInject = () => {
+            const toolbar = document.querySelector('.el-image-viewer__actions__inner');
+            if (toolbar) {
+                injectViewOriginalBtn();
+            } else {
+                setTimeout(tryInject, 100);
+            }
+        };
+        nextTick(() => setTimeout(tryInject, 50));
+    } else {
+        removeViewOriginalBtn();
+    }
+});
+
+watch(originalLoading, (loading) => {
+    if (injectedBtn) {
+        injectedBtn.disabled = loading;
+        injectedBtn.textContent = loading ? '加载中...' : '查看原图';
+        injectedBtn.style.opacity = loading ? '0.6' : '1';
+    }
+});
+
+watch(showViewOriginalBtn, (show) => {
+    if (injectedBtn) {
+        injectedBtn.style.display = show ? '' : 'none';
+    }
+});
 
 </script>
 
@@ -543,9 +628,22 @@ loadImg();
                     </template>
                 </el-dialog>
 
-                <!-- Full-size image preview viewer -->
-                <ElImageViewer v-if="previewVisible" :url-list="previewList" :initial-index="previewIndex"
-                    :z-index="2000" @close="previewVisible = false" />
+                <!-- Full-size image preview viewer with controls -->
+                <template v-if="previewVisible">
+                    <ElImageViewer :url-list="previewUrlList" :initial-index="0" :z-index="2000"
+                        @close="previewVisible = false" />
+                    <div class="preview-controls">
+                        <el-button class="preview-nav-btn preview-nav-left" :disabled="previewIndex <= 0"
+                            @click="navigatePreview(-1)" circle size="large">
+                            <el-icon><ArrowLeft /></el-icon>
+                        </el-button>
+                        <el-button class="preview-nav-btn preview-nav-right"
+                            :disabled="previewIndex >= collectionItems.length - 1" @click="navigatePreview(1)" circle
+                            size="large">
+                            <el-icon><ArrowRight /></el-icon>
+                        </el-button>
+                    </div>
+                </template>
             </template>
         </div>
 
@@ -1015,5 +1113,41 @@ loadImg();
 .danger-section {
     display: flex;
     justify-content: flex-end;
+}
+
+/* Preview overlay controls */
+.preview-controls {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2100;
+    pointer-events: none;
+}
+
+.preview-controls>* {
+    pointer-events: auto;
+}
+
+.preview-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    color: #fff !important;
+}
+
+.preview-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.preview-nav-left {
+    left: 24px;
+}
+
+.preview-nav-right {
+    right: 24px;
 }
 </style>
