@@ -557,6 +557,15 @@ export const mergeCollection = async (src: string[]): Promise<{ status: string; 
     return fetchDataAutoRetry('/api/collection/merge/', { src }, 'POST') as Promise<{ status: string; href: string }>;
 };
 
+export interface ReorderItem {
+    image_href: string;
+    sort_order: number;
+}
+
+export const reorderCollection = async (src: string, orders: ReorderItem[]): Promise<{ status: string }> => {
+    return fetchDataAutoRetry('/api/collection/reorder/', { src, orders }, 'POST') as Promise<{ status: string }>;
+};
+
 export const loginWithPassword = async (payload: LoginRequest): Promise<TokenResponse> => {
     const response = await fetch('/api/token/', {
         method: 'POST',

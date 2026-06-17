@@ -19,9 +19,10 @@ import {
     deleteCollection,
     deleteImage,
     listCollectionImages,
-    likeCollectionImage
+    likeCollectionImage,
+    reorderCollection
 } from '@/api/componentRequests';
-import type { CollectionItem } from '@/api/componentRequests';
+import type { CollectionItem, ReorderItem } from '@/api/componentRequests';
 import { ZoomIn, ZoomOut, Refresh, Picture, Edit, Check, Plus, Delete, Collection, Upload as UploadIcon, Star, StarFilled, ArrowLeft, ArrowRight } from '@element-plus/icons-vue';
 import { ElImageViewer } from 'element-plus';
 
@@ -43,8 +44,12 @@ const addProgress = ref(0);
 const addTotal = ref(0);
 const previewVisible = ref(false);
 const previewIndex = ref(0);
-const previewFullSrcs = ref<Record<number, string>>({});
+const previewFullSrcs = ref<Record<number, string>>({}); // 缓存已加载的原图URL，key为collectionItems的index
 const originalLoading = ref(false);
+
+const dragIndex = ref<number | null>(null);
+const dragOverIndex = ref<number | null>(null);
+const reorderPending = ref(false);
 
 interface ImageProperty {
     name: string;
@@ -86,6 +91,7 @@ const loadCollectionImages = async () => {
     collectionLoading.value = true;
     try {
         const items = await listCollectionImages(imgSrc.value as string);
+        items.sort((a, b) => a.sort_order - b.sort_order);
         collectionItems.value = items.map(item => ({ ...item, blobSrc: '' }));
         // Load thumbnails only
         for (const item of collectionItems.value) {
@@ -462,6 +468,66 @@ const loadOriginalForIndex = async (index: number) => {
     } catch { }
 };
 
+const onDragStart = (index: number, event: DragEvent) => {
+    dragIndex.value = index;
+    if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', String(index));
+    }
+};
+
+const onDragOver = (index: number, event: DragEvent) => {
+    event.preventDefault();
+    if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'move';
+    }
+    dragOverIndex.value = index;
+};
+
+const onDragLeave = () => {
+    dragOverIndex.value = null;
+};
+
+const onDrop = async (index: number) => {
+    dragOverIndex.value = null;
+    const fromIndex = dragIndex.value;
+    if (fromIndex === null || fromIndex === index) {
+        dragIndex.value = null;
+        return;
+    }
+
+    const items = [...collectionItems.value];
+    const [movedItem] = items.splice(fromIndex, 1);
+    items.splice(index, 0, movedItem);
+    collectionItems.value = items;
+
+    const orders: ReorderItem[] = [];
+    collectionItems.value.forEach((item, i) => {
+        if (item.sort_order !== i) {
+            orders.push({ image_href: item.image_href, sort_order: i });
+            item.sort_order = i;
+        }
+    });
+
+    dragIndex.value = null;
+
+    if (orders.length === 0) return;
+
+    reorderPending.value = true;
+    try {
+        await reorderCollection(imgSrc.value as string, orders);
+    } catch {
+        ElMessage.error('排序保存失败');
+    } finally {
+        reorderPending.value = false;
+    }
+};
+
+const onDragEnd = () => {
+    dragIndex.value = null;
+    dragOverIndex.value = null;
+};
+
 loadImg();
 
 let injectedBtn: HTMLButtonElement | null = null;
@@ -574,7 +640,17 @@ watch(showViewOriginalBtn, (show) => {
                     </div>
                     <div class="collection-grid" v-loading="collectionLoading">
                         <div v-for="(item, index) in collectionItems" :key="item.image_href"
-                            class="collection-grid-item">
+                            class="collection-grid-item"
+                            :class="{
+                                'is-dragging': dragIndex === index,
+                                'is-drag-over': dragOverIndex === index && dragIndex !== index,
+                            }"
+                            draggable="true"
+                            @dragstart="onDragStart(index, $event)"
+                            @dragover="onDragOver(index, $event)"
+                            @dragleave="onDragLeave"
+                            @drop="onDrop(index)"
+                            @dragend="onDragEnd">
                             <div class="collection-img-wrapper">
                                 <el-image :src="item.blobSrc" fit="cover" class="collection-thumb"
                                     @click="openCollectionPreview(index)">
@@ -1107,6 +1183,16 @@ watch(showViewOriginalBtn, (show) => {
 .collection-empty {
     grid-column: 1 / -1;
     padding: 40px 0;
+}
+
+/* Drag states */
+.collection-grid-item.is-dragging {
+    opacity: 0.4;
+}
+
+.collection-grid-item.is-drag-over .collection-img-wrapper {
+    outline: 2px dashed #409eff;
+    outline-offset: 2px;
 }
 
 /* Danger zone */
