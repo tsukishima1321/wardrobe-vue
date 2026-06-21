@@ -449,6 +449,15 @@ const navigatePreview = (direction: number) => {
     previewIndex.value = newIndex;
 };
 
+window.addEventListener('keydown', (event) => {
+    if (!previewVisible.value) return;
+    if (event.key === 'ArrowLeft') {
+        navigatePreview(-1);
+    } else if (event.key === 'ArrowRight') {
+        navigatePreview(1);
+    }
+});
+
 const loadCurrentOriginal = async () => {
     originalLoading.value = true;
     try {
