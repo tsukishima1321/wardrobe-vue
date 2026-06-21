@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUpdated, useTemplateRef, watch } from 'vue';
+import { ref, computed, onMounted, onUpdated, useTemplateRef, watch,type Ref } from 'vue';
 import { useRouter } from 'vue-router';
 import Masonry from 'masonry-layout';
 import { debounce } from 'lodash';
@@ -174,6 +174,28 @@ onUpdated(() => {
     }
 });
 
+const galleryImages = ref<GalleryImageItem[]>([])
+
+watch(blobImgList, (newList) => {
+  const keep = new Map<string, string>()
+  for (const img of galleryImages.value) {
+    if (img.blobSrc) keep.set(img.src, img.blobSrc)
+  }
+  galleryImages.value = newList.map(item => ({
+    src: item.oriSrc,
+    title: item.title,
+    date: item.date,
+    is_collection: item.isCollection,
+    blobSrc: keep.get(item.oriSrc) || item.blobSrc || '',
+  }))
+}, { deep: true, immediate: true })
+
+let galleryGrid: Ref<InstanceType<typeof GalleryGrid>> | null = null
+
+const galleryHasMore = computed(() =>
+  displayMode.value === 'gallery' && (totalPage.value === 0 || page.value < totalPage.value)
+)
+
 // Methods
 const updateSearchHint = debounce(async () => {
     let data = await getSearchHints();
@@ -224,6 +246,9 @@ const updateSearch = debounce(async (resetpage: boolean = true) => {
             blobImgList.value.push(...newItems);
         } else {
             blobImgList.value = newItems;
+            if(galleryGrid?.value) {
+                galleryGrid.value.zoomLevel = 3;
+            }
         }
 
         if (displayMode.value === 'masonry') {
@@ -244,20 +269,6 @@ const updateSearch = debounce(async (resetpage: boolean = true) => {
         isLoading.value = false;
     }
 }, 200);
-
-const galleryImages = computed<GalleryImageItem[]>(() =>
-  blobImgList.value.map(item => ({
-    src: item.oriSrc,
-    title: item.title,
-    date: item.date,
-    is_collection: item.isCollection,
-    blobSrc: item.blobSrc,
-  }))
-)
-
-const galleryHasMore = computed(() =>
-  displayMode.value === 'gallery' && (totalPage.value === 0 || page.value < totalPage.value)
-)
 
 function loadMoreGallery() {
   page.value++
@@ -450,6 +461,7 @@ watch(displayMode, (newVal) => {
 });
 
 onMounted(() => {
+    galleryGrid = useTemplateRef('galleryGrid') as Ref<InstanceType<typeof GalleryGrid>>;
     updateSearchHint();
     updateSearch();
 });
@@ -509,7 +521,7 @@ onMounted(() => {
                 </div>
 
                 <div v-else class="gallery-results">
-                    <GalleryGrid
+                    <GalleryGrid ref="galleryGrid"
                         :images="galleryImages"
                         :isLoading="isLoading"
                         :hasMore="galleryHasMore"
@@ -584,6 +596,7 @@ onMounted(() => {
 .gallery-results {
     flex: 1;
     min-height: 0;
+    overflow: hidden;
 }
 
 .masonry-container-wrapper {

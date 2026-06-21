@@ -35,7 +35,7 @@ const emit = defineEmits<{
 }>()
 
 const scrollContainer = ref<HTMLElement>()
-const zoomLevel = ref(2)
+const zoomLevel = ref(3)
 
 const currentConfig = computed(() => ZOOM_CONFIG[zoomLevel.value])
 const columns = computed(() => currentConfig.value.columns)
