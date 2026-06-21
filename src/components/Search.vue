@@ -12,6 +12,8 @@ import SearchFilterPanel from './search/SearchFilterPanel.vue';
 import SearchResultsHeader from './search/SearchResultsHeader.vue';
 import Pagination from './common/Pagination.vue';
 import MasonryItemFigure from './search/MasonryItemFigure.vue';
+import GalleryGrid from './GalleryGrid.vue';
+import type { GalleryImageItem } from './GalleryGrid.vue';
 
 // Interfaces
 export interface SearchParams {
@@ -115,7 +117,8 @@ const paginationRef = ref<PaginationExposed | null>(null);
 const blobImgList = ref<BlobImgItem[]>([]);
 const totalPage = ref(1);
 const totalItems = ref(0);
-const isPictureMode = ref(true);
+type DisplayMode = 'masonry' | 'table' | 'gallery'
+const displayMode = ref<DisplayMode>('masonry');
 const isLoading = ref(false);
 const keywordsHint = ref<string[]>([]);
 const propertiesHint = ref<string[]>([]);
@@ -127,14 +130,14 @@ const downloadProgress = ref({ visible: false, total: 0, completed: 0 });
 // Computed
 const hasSelection = computed(() => blobImgList.value.some(item => item.checked));
 const isAllSelected = computed(() => blobImgList.value.length > 0 && blobImgList.value.every(item => item.checked));
-const pageSize = computed(() => isPictureMode.value ? 20 : 100);
+const pageSize = computed(() => displayMode.value === 'masonry' ? 20 : displayMode.value === 'table' ? 100 : 200);
 
 // Masonry
 const masonryContainer = useTemplateRef('masonryContainer');
 let masonry: Masonry | null = null;
 
 const initMasonry = () => {
-    if (isPictureMode.value && masonryContainer.value) {
+    if (displayMode.value === 'masonry' && masonryContainer.value) {
         if (masonry) {
             masonry.destroy?.();
         }
@@ -147,9 +150,8 @@ const initMasonry = () => {
     }
 };
 
-watch(isPictureMode, (newVal) => {
-    if (newVal) {
-        // Wait for DOM update
+watch(displayMode, (newVal) => {
+    if (newVal === 'masonry') {
         setTimeout(() => {
             initMasonry();
         }, 100);
@@ -162,7 +164,7 @@ watch(isPictureMode, (newVal) => {
 });
 
 onUpdated(() => {
-    if (isPictureMode.value && masonryContainer.value) {
+    if (displayMode.value === 'masonry' && masonryContainer.value) {
         if (!masonry) {
             initMasonry();
         } else {
@@ -209,7 +211,7 @@ const updateSearch = debounce(async (resetpage: boolean = true) => {
         totalPage.value = data.totalPage;
         totalItems.value = data.total;
 
-        blobImgList.value = data.hrefList.map(item => ({
+        const newItems = data.hrefList.map(item => ({
             blobSrc: '',
             oriSrc: item.src,
             title: item.title,
@@ -218,9 +220,14 @@ const updateSearch = debounce(async (resetpage: boolean = true) => {
             isCollection: !!item.is_collection
         }));
 
-        if (isPictureMode.value) {
+        if (displayMode.value === 'gallery' && !resetpage) {
+            blobImgList.value.push(...newItems);
+        } else {
+            blobImgList.value = newItems;
+        }
+
+        if (displayMode.value === 'masonry') {
             data.hrefList.forEach(item => {
-                // 合集的缩略图可能变化，加上时间戳参数强制刷新缓存
                 GetBlobImgSrc("/imagebed/thumbnails/" + item.src + (item.is_collection ? `?${Date.now()}` : '')).then((blobSrc) => {
                     const imgItem = blobImgList.value.find(img => img.oriSrc === item.src);
                     if (imgItem) {
@@ -237,6 +244,30 @@ const updateSearch = debounce(async (resetpage: boolean = true) => {
         isLoading.value = false;
     }
 }, 200);
+
+const galleryImages = computed<GalleryImageItem[]>(() =>
+  blobImgList.value.map(item => ({
+    src: item.oriSrc,
+    title: item.title,
+    date: item.date,
+    is_collection: item.isCollection,
+    blobSrc: item.blobSrc,
+  }))
+)
+
+const galleryHasMore = computed(() =>
+  displayMode.value === 'gallery' && (totalPage.value === 0 || page.value < totalPage.value)
+)
+
+function loadMoreGallery() {
+  page.value++
+  updateSearch(false)
+}
+
+function galleryItemClick(src: string) {
+  const newWindow = router.resolve('/detail/' + src)
+  window.open(newWindow.href, '_blank')
+}
 
 const handleDelete = async () => {
     const selectedItems = blobImgList.value.filter(item => item.checked);
@@ -404,10 +435,9 @@ watch(searchParams, () => {
     updateSearch(true);
 }, { deep: true });
 
-watch(isPictureMode, (newVal) => {
+watch(displayMode, (newVal) => {
     updateSearch(true);
-    if (newVal) {
-        // Wait for DOM update
+    if (newVal === 'masonry') {
         setTimeout(() => {
             initMasonry();
         }, 100);
@@ -440,7 +470,8 @@ onMounted(() => {
         <main class="main-content">
             <SearchResultsHeader :searchword="searchParams.searchword" :sortBy="searchParams.sortBy"
                 :sortOrder="searchParams.sortOrder" :total="totalItems" :hasSelection="hasSelection"
-                :isAllSelected="isAllSelected" v-model:isPictureMode="isPictureMode"
+                :isAllSelected="isAllSelected" :displayMode="displayMode"
+                @update:displayMode="val => displayMode = val as DisplayMode"
                 @update:searchword="val => searchParams.searchword = val"
                 @update:sortBy="val => searchParams.sortBy = val"
                 @update:sortOrder="val => searchParams.sortOrder = val" @search="updateSearch" @delete="handleDelete"
@@ -448,7 +479,7 @@ onMounted(() => {
                 @openMobileFilter="showMobileFilter = true" />
 
             <div class="results-area" v-loading="isLoading">
-                <div v-if="isPictureMode" class="masonry-container-wrapper">
+                <div v-if="displayMode === 'masonry'" class="masonry-container-wrapper">
                     <div ref="masonryContainer" class="masonry">
                         <MasonryItemFigure v-for="blobImg in blobImgList" :key="blobImg.oriSrc" :src="blobImg.blobSrc"
                             :oriSrc="blobImg.oriSrc" :figcaption="blobImg.title" :checked="blobImg.checked"
@@ -457,7 +488,7 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <div v-else class="table-container">
+                <div v-else-if="displayMode === 'table'" class="table-container">
                     <el-table :data="blobImgList" stripe style="width: 100%" @selection-change="(selection: BlobImgItem[]) => {
                         blobImgList.forEach(item => item.checked = false);
                         selection.forEach(sel => {
@@ -476,9 +507,19 @@ onMounted(() => {
                         </el-table-column>
                     </el-table>
                 </div>
+
+                <div v-else class="gallery-results">
+                    <GalleryGrid
+                        :images="galleryImages"
+                        :isLoading="isLoading"
+                        :hasMore="galleryHasMore"
+                        @itemClick="galleryItemClick"
+                        @loadMore="loadMoreGallery"
+                    />
+                </div>
             </div>
 
-            <Pagination ref="paginationRef" :maxPage="totalPage" @pageChanged="pageChanged" />
+            <Pagination v-if="displayMode !== 'gallery'" ref="paginationRef" :maxPage="totalPage" @pageChanged="pageChanged" />
         </main>
 
         <!-- Download progress float -->
@@ -535,6 +576,14 @@ onMounted(() => {
     flex-grow: 1;
     margin-bottom: 20px;
     margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.gallery-results {
+    flex: 1;
+    min-height: 0;
 }
 
 .masonry-container-wrapper {

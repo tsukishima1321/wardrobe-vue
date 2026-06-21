@@ -38,6 +38,11 @@ const router = createRouter({
       name: 'diary',
       component: () => import('../views/DiaryView.vue')
     },
+    {
+      path: '/gallery',
+      name: 'gallery',
+      component: () => import('../views/GalleryView.vue')
+    },
   ],
 })
 

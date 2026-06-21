@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { ElInput, ElButton, ElSelect, ElOption, ElRadioGroup, ElRadioButton, ElIcon } from 'element-plus';
-import { Search, Delete, Download, Grid, List, Filter, FolderAdd } from '@element-plus/icons-vue';
+import { Search, Delete, Download, Grid, List, Filter, FolderAdd, PictureRounded } from '@element-plus/icons-vue';
 
 const props = defineProps<{
     searchword: string;
     sortBy: string;
     sortOrder: string;
-    isPictureMode: boolean;
+    displayMode: string;
     hasSelection: boolean;
     isAllSelected: boolean;
     total: number;
@@ -17,7 +17,7 @@ const emit = defineEmits<{
     (e: 'update:searchword', val: string): void;
     (e: 'update:sortBy', val: string): void;
     (e: 'update:sortOrder', val: string): void;
-    (e: 'update:isPictureMode', val: boolean): void;
+    (e: 'update:displayMode', val: string): void;
     (e: 'search'): void;
     (e: 'delete'): void;
     (e: 'download'): void;
@@ -96,22 +96,21 @@ const toggleSelectAll = () => {
                     <el-button type="success" plain :icon="Download" circle @click="$emit('download')" />
                 </div>
 
-                <el-button v-if=isPictureMode :type="isAllSelected ? 'primary' : 'default'" plain @click="toggleSelectAll">
+                <el-button v-if="displayMode === 'masonry'" :type="isAllSelected ? 'primary' : 'default'" plain @click="toggleSelectAll">
                     {{ isAllSelected ? 'Deselect All' : 'Select All' }}
                 </el-button>
 
                 <div class="view-toggle">
-                    <el-radio-group :model-value="isPictureMode"
-                        @update:model-value="$emit('update:isPictureMode', $event as boolean)">
-                        <el-radio-button :value="true">
-                            <el-icon>
-                                <Grid />
-                            </el-icon>
+                    <el-radio-group :model-value="displayMode"
+                        @update:model-value="$emit('update:displayMode', ($event as string))">
+                        <el-radio-button value="masonry">
+                            <el-icon><Grid /></el-icon>
                         </el-radio-button>
-                        <el-radio-button :value="false">
-                            <el-icon>
-                                <List />
-                            </el-icon>
+                        <el-radio-button value="table">
+                            <el-icon><List /></el-icon>
+                        </el-radio-button>
+                        <el-radio-button value="gallery">
+                            <el-icon><PictureRounded /></el-icon>
                         </el-radio-button>
                     </el-radio-group>
                 </div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 
 import favicon from '@/assets/icons/favicon.ico';
-import { Management, Picture, Notebook, Bell, Check, Link } from '@element-plus/icons-vue';
+import { Management, Picture, PictureRounded, Notebook, Bell, Check, Link } from '@element-plus/icons-vue';
 import { useRouter, onBeforeRouteUpdate } from 'vue-router';
 import { onMounted, onUnmounted, ref, computed } from 'vue';
 import { refreshAccessToken } from '@/api/token';
@@ -140,7 +140,10 @@ onUnmounted(() => {
             </el-icon>日记</el-menu-item>
         <el-menu-item index="/search"><el-icon>
                 <Picture />
-            </el-icon>图片</el-menu-item>
+            </el-icon>搜索</el-menu-item>
+        <el-menu-item index="/gallery"><el-icon>
+                <PictureRounded />
+            </el-icon>总览</el-menu-item>
         <el-menu-item index="/manage"><el-icon>
                 <Management />
             </el-icon>管理</el-menu-item>
