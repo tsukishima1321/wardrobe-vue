@@ -205,8 +205,8 @@ const handleFileChange = async (uploadFile: UploadFile) => {
         try {
             const formData = new FormData();
             formData.append('image', uploadFile.raw);
-            formData.append('title', uploadFile.name); // Just filename
-            formData.append('date', new Date().toISOString().split('T')[0]); // Today
+            formData.append('title', uploadFile.name);
+            formData.append('date', uploadFile.raw?.lastModified ? new Date(uploadFile.raw?.lastModified).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
             formData.append('doOCR', 'false');
             formData.append('keywords', '[]');
             formData.append('properties', '[]');
