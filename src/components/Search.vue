@@ -6,7 +6,7 @@ import { debounce } from 'lodash';
 import { ElMessage, ElMessageBox, ElDrawer, ElProgress, ElIcon } from 'element-plus';
 import { Close } from '@element-plus/icons-vue';
 import { GetBlobImgSrc } from "@/api/token";
-import { deleteImage, deleteCollection, getSearchHints, searchImages, listCollectionImages, mergeCollection } from "@/api/componentRequests";
+import { deleteImage, deleteCollection, getSearchHints, searchImages, listCollectionImages, mergeCollection, createKeyword, createProperty } from "@/api/componentRequests";
 
 import SearchFilterPanel from './search/SearchFilterPanel.vue';
 import SearchResultsHeader from './search/SearchResultsHeader.vue';
@@ -123,6 +123,12 @@ const isLoading = ref(false);
 const keywordsHint = ref<string[]>([]);
 const propertiesHint = ref<string[]>([]);
 const showMobileFilter = ref(false);
+
+const batchMetadataVisible = ref(false);
+const batchKeyword = ref('');
+const batchPropName = ref('');
+const batchPropValue = ref('');
+const batchMetadataLoading = ref(false);
 
 // Download progress
 const downloadProgress = ref({ visible: false, total: 0, completed: 0 });
@@ -402,6 +408,57 @@ const handleMergeCollection = async () => {
     }
 };
 
+const handleBatchMetadata = async () => {
+    const selectedItems = blobImgList.value.filter(item => item.checked);
+    if (selectedItems.length === 0) {
+        ElMessage.warning('选择列表为空');
+        return;
+    }
+
+    const keyword = batchKeyword.value.trim();
+    const propName = batchPropName.value.trim();
+    const propValue = batchPropValue.value.trim();
+
+    if (!keyword && !(propName && propValue)) {
+        ElMessage.warning('请至少输入一个关键词或一组属性');
+        return;
+    }
+
+    batchMetadataLoading.value = true;
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+        for (const item of selectedItems) {
+            try {
+                if (keyword) {
+                    await createKeyword(item.oriSrc, keyword);
+                }
+                if (propName && propValue) {
+                    await createProperty(item.oriSrc, propName, propValue);
+                }
+                successCount++;
+            } catch {
+                failCount++;
+            }
+        }
+
+        if (failCount === 0) {
+            ElMessage.success(`已为 ${successCount} 个项目批量添加信息`);
+        } else {
+            ElMessage.warning(`部分完成：${successCount} 成功，${failCount} 失败`);
+        }
+
+        batchMetadataVisible.value = false;
+        batchKeyword.value = '';
+        batchPropName.value = '';
+        batchPropValue.value = '';
+        updateSearchHint();
+    } finally {
+        batchMetadataLoading.value = false;
+    }
+};
+
 const selectAll = () => {
     blobImgList.value.forEach(item => item.checked = true);
 };
@@ -487,7 +544,7 @@ onMounted(() => {
                 @update:searchword="val => searchParams.searchword = val"
                 @update:sortBy="val => searchParams.sortBy = val"
                 @update:sortOrder="val => searchParams.sortOrder = val" @search="updateSearch" @delete="handleDelete"
-                @download="handleDownload" @mergeCollection="handleMergeCollection" @selectAll="selectAll" @selectNone="selectNone"
+                @download="handleDownload" @mergeCollection="handleMergeCollection" @batchMetadata="batchMetadataVisible = true" @selectAll="selectAll" @selectNone="selectNone"
                 @openMobileFilter="showMobileFilter = true" />
 
             <div class="results-area" v-loading="isLoading">
@@ -552,6 +609,21 @@ onMounted(() => {
                 </div>
             </div>
         </Transition>
+
+        <el-dialog v-model="batchMetadataVisible" title="批量增加信息" width="480px" :close-on-click-modal="false">
+            <div class="batch-metadata-form">
+                <div class="batch-metadata-hint">将为所有已选中的项目添加相同的关键词/属性</div>
+                <el-input v-model="batchKeyword" placeholder="关键词" clearable style="margin-bottom: 16px;" />
+                <div class="batch-prop-row">
+                    <el-input v-model="batchPropName" placeholder="属性名" clearable style="width: 40%" />
+                    <el-input v-model="batchPropValue" placeholder="属性值" clearable style="flex: 1; margin-left: 8px;" />
+                </div>
+            </div>
+            <template #footer>
+                <el-button @click="batchMetadataVisible = false">取消</el-button>
+                <el-button type="primary" @click="handleBatchMetadata" :loading="batchMetadataLoading">确定</el-button>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
@@ -655,6 +727,21 @@ onMounted(() => {
 .slide-up-leave-to {
     transform: translateY(20px);
     opacity: 0;
+}
+
+.batch-metadata-form {
+    padding: 8px 0;
+}
+
+.batch-metadata-hint {
+    font-size: 13px;
+    color: #909399;
+    margin-bottom: 16px;
+}
+
+.batch-prop-row {
+    display: flex;
+    align-items: center;
 }
 
 @media (max-width: 768px) {
