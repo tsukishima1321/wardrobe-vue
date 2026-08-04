@@ -94,7 +94,7 @@ export interface ImageData {
     date: string;
     text: string;
     keywords?: Array<string>;
-    propertys?: Array<ImageProperty>;
+    properties?: Array<ImageProperty>;
     is_collection?: boolean;
     items?: CollectionItem[];
 }
