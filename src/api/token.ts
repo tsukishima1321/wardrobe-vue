@@ -13,6 +13,14 @@ export class ResponseWithError extends Error {
     }
 }
 
+export class AuthenticationError extends Error {
+    constructor(message = 'Authentication required') {
+        super(message);
+        this.name = 'AuthenticationError';
+        Object.setPrototypeOf(this, AuthenticationError.prototype);
+    }
+}
+
 export async function GetBlobImgSrc(url: string): Promise<string> {
     const token = localStorage.getItem('wardrobe-access-token') || 'default-token';
     const useLocalImagebed = localStorage.getItem('useLocalImagebed') === 'true';
@@ -120,36 +128,42 @@ export async function fetchDataAutoRetry(url: string, para: object, method = 'PO
         let accessToken = localStorage.getItem('wardrobe-access-token');
         if (!accessToken) {
             console.log('No access token found. Please log in again.');
-            throw new Error('No access token found. Please log in again.');
+            throw new AuthenticationError('No access token found. Please log in again.');
         }
         data = await fetchJsonWithToken(url, accessToken, para, method, json) as any;
         if (data.message === 'not authorized') {
             const refreshToken = localStorage.getItem('wardrobe-refresh-token');
             if (!refreshToken) {
                 console.log('No refresh token found. Please log in again.');
-                throw new Error('No refresh token found. Please log in again.');
+                throw new AuthenticationError('No refresh token found. Please log in again.');
             }
             try {
                 if (await refreshAccessToken(refreshToken)) {
                     accessToken = localStorage.getItem('wardrobe-access-token');
                     if (!accessToken) {
                         console.log('No access token found. Please log in again.');
-                        throw new Error('No access token found. Please log in again.');
+                        throw new AuthenticationError('No access token found. Please log in again.');
                     }
                     data = await fetchJsonWithToken(url, accessToken, para, method, json);
+                    if ((data as any).message === 'not authorized') {
+                        throw new AuthenticationError('The refreshed access token was rejected.');
+                    }
                 }
                 else {
                     console.log('Refresh token failed. Please log in again.');
-                    throw new Error('Refresh token failed. Please log in again.');
+                    throw new AuthenticationError('Refresh token failed. Please log in again.');
                 }
             } catch (refreshError) {
                 console.error('Error refreshing token:', refreshError);
+                if (refreshError instanceof AuthenticationError) {
+                    throw refreshError;
+                }
                 throw new Error('Error refreshing token');
             }
         }
     } catch (error) {
         console.error('Error fetching data:', error);
-        if (error instanceof ResponseWithError) {
+        if (error instanceof ResponseWithError || error instanceof AuthenticationError) {
             throw error;
         }
         throw new Error('Error fetching data');

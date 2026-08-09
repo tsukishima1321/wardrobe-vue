@@ -15,6 +15,7 @@ import RemixCard from './home/RemixCard.vue';
 import DigestCard from './home/DigestCard.vue';
 import StatsCard from './home/StatsCard.vue';
 import TimelineReport from './home/TimelineReport.vue';
+import PropertyDistributionCard from './home/PropertyDistributionCard.vue';
 import { GetBlobImgSrc } from '../api/token';
 import {
     generateTips as requestGenerateTips,
@@ -148,8 +149,8 @@ const openKeywordSearch = (keyword: string) => {
     openSearchWindow('', { keywords: [keyword] });
 };
 
-const openPropertySearch = (property: ImageProperty) => {
-    openSearchWindow('', {
+const openPropertySearch = (property: ImageProperty, searchword = '') => {
+    openSearchWindow(searchword, {
         properties: [{ name: property.name, value: property.value }],
         propertiesPrecise: true,
     });
@@ -320,7 +321,8 @@ const openHeroMemory = () => {
 };
 
 const openDetail = (src: string) => {
-    navigateTo(`/detail/${src}`);
+    //navigateTo(`/detail/${src}`);
+    window.open(router.resolve({ path: `/detail/${src}` }).href, '_blank');
 };
 
 const search = (searchword: string) => {
@@ -516,6 +518,13 @@ onMounted(async () => {
             </div>
         </section>
 
+        <section class="property-distribution-section">
+            <PropertyDistributionCard
+                @open-property-search="openPropertySearch"
+                @open-detail="openDetail"
+            />
+        </section>
+
         <TimelineReport @open-timeline-bucket-search="handleTimelineBucketSearch" />
     </div>
 </template>
@@ -607,6 +616,10 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+.property-distribution-section {
+    margin-top: 1.5rem;
 }
 
 .card {

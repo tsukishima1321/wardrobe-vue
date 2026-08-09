@@ -2,9 +2,9 @@
 
 import favicon from '@/assets/icons/favicon.ico';
 import { Management, Picture, PictureRounded, Notebook, Bell, Check, Link } from '@element-plus/icons-vue';
-import { useRouter, onBeforeRouteUpdate } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { onMounted, onUnmounted, ref, computed } from 'vue';
-import { refreshAccessToken } from '@/api/token';
+import { AuthenticationError, refreshAccessToken } from '@/api/token';
 import { clearReadMessages as clearReadMessagesRequest, createMessageStream, getMessageList, markMessageRead } from '@/api/componentRequests';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
@@ -24,6 +24,9 @@ let messageStream: EventSource | null = null;
 const messages = ref<MessageData[]>([]);
 const dialogVisible = ref(false);
 const currentMessage = ref<MessageData | null>(null);
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnecting = false;
+let isUnmounted = false;
 
 const unreadCount = computed(() => messages.value.filter(m => m.status === 'unread').length);
 const hasReadMessages = computed(() => messages.value.some(m => m.status === 'read'));
@@ -58,6 +61,9 @@ const markAsRead = async (msg: MessageData) => {
             msg.status = 'read';
         } catch (e) {
             console.error('Failed to mark as read', e);
+            if (e instanceof AuthenticationError) {
+                handleAuthenticationFailure();
+            }
         }
     }
 };
@@ -74,58 +80,123 @@ const clearReadMessages = async () => {
         messages.value = messages.value.filter(m => m.status !== 'read');
     } catch (e) {
         console.error('Failed to clear read messages', e);
+        if (e instanceof AuthenticationError) {
+            handleAuthenticationFailure();
+        }
     }
 };
 
-onMounted(async () => {
-    messages.value = await getMessageList() as MessageData[];
-
-    let token = localStorage.getItem('wardrobe-access-token');
-    if (!token) {
-        router.push('/login');
+const closeMessageStream = () => {
+    if (messageStream) {
+        messageStream.close();
+        messageStream = null;
     }
+};
 
-    // 尝试刷新 token 以确保有效
-    const refreshToken = localStorage.getItem('wardrobe-refresh-token');
-    if (refreshToken) {
-        await refreshAccessToken(refreshToken);
-        token = localStorage.getItem('wardrobe-access-token');
+const clearReconnectTimer = () => {
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
     }
+};
 
-    if (!token) {
-        router.push('/login');
+const handleAuthenticationFailure = () => {
+    closeMessageStream();
+    clearReconnectTimer();
+    localStorage.removeItem('wardrobe-access-token');
+    localStorage.removeItem('wardrobe-refresh-token');
+    messages.value = [];
+    if (!isUnmounted && router.currentRoute.value.name !== 'login') {
+        router.replace('/login');
+    }
+};
+
+const scheduleReconnect = () => {
+    if (isUnmounted || reconnectTimer) {
         return;
     }
+    reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        reconnectMessageStream();
+    }, 3000);
+};
 
+const connectMessageStream = (token: string) => {
+    if (isUnmounted) {
+        return;
+    }
+    closeMessageStream();
     messageStream = createMessageStream(token);
-
     messageStream.onmessage = (event) => {
         const data = JSON.parse(event.data) as MessageData;
         console.log('Received message:', data);
         messages.value.push(data);
     };
-});
+    messageStream.onerror = () => {
+        closeMessageStream();
+        scheduleReconnect();
+    };
+};
 
-onBeforeRouteUpdate((to, from, next) => {
-    if (!messageStream) {
-        // 重新尝试连接 SSE
-        let token = localStorage.getItem('wardrobe-access-token');
-        if (token) {
-            messageStream = createMessageStream(token);
-            messageStream.onmessage = (event) => {
-                const data = JSON.parse(event.data) as MessageData;
-                console.log('Received message:', data);
-                messages.value.push(data);
-            };
-        }
+const reconnectMessageStream = async () => {
+    if (isUnmounted || reconnecting) {
+        return;
     }
-    next();
+    reconnecting = true;
+    try {
+        const refreshToken = localStorage.getItem('wardrobe-refresh-token');
+        if (!refreshToken || !await refreshAccessToken(refreshToken)) {
+            handleAuthenticationFailure();
+            return;
+        }
+        const token = localStorage.getItem('wardrobe-access-token');
+        if (!token) {
+            handleAuthenticationFailure();
+            return;
+        }
+        connectMessageStream(token);
+    } catch (error) {
+        console.error('Failed to reconnect message stream', error);
+        scheduleReconnect();
+    } finally {
+        reconnecting = false;
+    }
+};
+
+const initializeMessages = async () => {
+    const token = localStorage.getItem('wardrobe-access-token');
+    if (!token) {
+        handleAuthenticationFailure();
+        return;
+    }
+
+    try {
+        messages.value = await getMessageList() as MessageData[];
+        const currentToken = localStorage.getItem('wardrobe-access-token');
+        if (!currentToken) {
+            handleAuthenticationFailure();
+            return;
+        }
+        connectMessageStream(currentToken);
+    } catch (error) {
+        console.error('Failed to initialize messages', error);
+        if (error instanceof AuthenticationError) {
+            handleAuthenticationFailure();
+            return;
+        }
+        scheduleReconnect();
+    }
+};
+
+onMounted(() => {
+    isUnmounted = false;
+    initializeMessages();
 });
 
 onUnmounted(() => {
-    if (messageStream) {
-        messageStream.close();
-    }
+    isUnmounted = true;
+    closeMessageStream();
+    clearReconnectTimer();
 });
 
 </script>

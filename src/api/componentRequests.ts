@@ -38,6 +38,43 @@ export interface StatResponse {
     typesExpanded: Array<TypeStatistics>;
 }
 
+export interface PropertyDistributionOption {
+    name: string;
+    count: number;
+    valueCount: number;
+}
+
+export interface PropertyDistributionSample {
+    src: string;
+    title: string;
+    date: string;
+    isCollection: boolean;
+}
+
+export interface PropertyDistributionValue {
+    value: string;
+    count: number;
+    percentage: number;
+    samples: PropertyDistributionSample[];
+}
+
+export interface PropertyDistributionResponse {
+    property: string;
+    searchKey: string;
+    properties: PropertyDistributionOption[];
+    summary: {
+        totalPictures: number;
+        totalAssignments: number;
+        valueCount: number;
+    };
+    values: PropertyDistributionValue[];
+    other: {
+        count: number;
+        percentage: number;
+        valueCount: number;
+    } | null;
+}
+
 export interface DiaryItem {
     id: number;
     date: string;
@@ -350,6 +387,29 @@ export const getRandomImageInfo = async (keyword?: string, includeCollections = 
 
 export const getStatistics = async (): Promise<StatResponse> => {
     return fetchDataAutoRetry('/api/statistics/', {}, 'GET') as Promise<StatResponse>;
+};
+
+export const getPropertyDistribution = async (
+    propertyName = '',
+    searchKey = '',
+    limit = 10,
+    samples = 4,
+): Promise<PropertyDistributionResponse> => {
+    const params = new URLSearchParams({
+        limit: String(limit),
+        samples: String(samples),
+    });
+    if (propertyName) {
+        params.set('property', propertyName);
+    }
+    if (searchKey) {
+        params.set('searchKey', searchKey);
+    }
+    return fetchDataAutoRetry(
+        `/api/report/property-distribution/?${params.toString()}`,
+        {},
+        'GET',
+    ) as Promise<PropertyDistributionResponse>;
 };
 
 export const searchDiary = async (params: DiarySearchLatestParams): Promise<DiarySearchResponse> => {
