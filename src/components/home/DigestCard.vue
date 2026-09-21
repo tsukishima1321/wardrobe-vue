@@ -39,11 +39,6 @@ const getReminderClass = (severity?: string): string => {
 
 <template>
     <article class="card digest-card">
-        <div class="card-top">
-            <div>
-                <p class="card-kicker">最近的你</p>
-            </div>
-        </div>
 
         <div v-if="discoveryLoading" class="card-fill">
             <el-skeleton :rows="6" animated />
@@ -95,7 +90,6 @@ const getReminderClass = (severity?: string): string => {
         </template>
 
         <div v-else class="empty-panel compact">
-            <p>摘要区暂时不可用，但下面的搜索、统计和时间线仍然可以继续使用。</p>
         </div>
     </article>
 </template>

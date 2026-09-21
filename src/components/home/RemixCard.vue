@@ -28,11 +28,7 @@ const truncateText = (text: string, maxLength = 96): string => {
     <article class="card remix-card">
         <div class="card-top">
             <div>
-                <p class="card-kicker">记忆重组</p>
                 <h3>{{ remixModule?.title || '记忆重组' }}</h3>
-                <p class="card-subtitle">
-                    {{ remixModule?.subtitle || '把不同时间里反复出现的主题，拼成一条更有趣的线索。' }}
-                </p>
             </div>
             <el-button v-if="remixModule && !remixModule.empty" link class="theme-link" @click="emit('open-theme-search')">
                 {{ remixModule.theme.label }} →

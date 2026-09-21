@@ -408,21 +408,18 @@ onMounted(async () => {
                             <Upload />
                         </el-icon>
                         <strong>上传照片</strong>
-                        <span>把今天放进下一次回看里</span>
                     </div>
                     <div class="action-btn" @click="navigateTo('/diary')">
                         <el-icon>
                             <Notebook />
                         </el-icon>
-                        <strong>写点日记</strong>
-                        <span>给照片加一句情绪和背景</span>
+                        <strong>创建日记</strong>
                     </div>
                     <div class="action-btn" @click="navigateTo('/search')">
                         <el-icon>
                             <Picture />
                         </el-icon>
                         <strong>进入图库</strong>
-                        <span>从更多筛选条件里继续找</span>
                     </div>
                 </article>
             </div>
@@ -450,19 +447,12 @@ onMounted(async () => {
         <section class="support-grid">
             <div class="support-column">
                 <article class="card search-card">
-                    <div class="card-top">
-                        <div>
-                            <p class="card-kicker">继续探索</p>
-                            <h3>从一个词开始</h3>
-                        </div>
-                    </div>
                     <SearchBarSimple @update-value="search" />
                 </article>
 
                 <article class="card random-card">
                     <div class="card-top">
                         <div>
-                            <p class="card-kicker">随机翻翻</p>
                             <h3>意外发现</h3>
                         </div>
                         <div class="card-top-actions">

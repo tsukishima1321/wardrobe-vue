@@ -39,11 +39,7 @@ const truncateText = (text: string, maxLength = 96): string => {
     <article class="card hero-card">
         <div class="card-top">
             <div>
-                <p class="card-kicker">今日回看</p>
                 <h2>{{ heroModule?.title || '那年今日' }}</h2>
-                <p class="card-subtitle">
-                    {{ heroModule?.subtitle || '从过去的同一天里，重新摸到一小段今天会在意的记忆。' }}
-                </p>
             </div>
             <div class="card-top-actions">
                 <span v-if="heroMatchBadge" class="soft-badge">{{ heroMatchBadge }}</span>
@@ -115,7 +111,6 @@ const truncateText = (text: string, maxLength = 96): string => {
         </template>
 
         <div v-else class="empty-panel">
-            <p>{{ discoveryError || '今天还没有命中"那年今日"，不如先去补一张新图，或者换个入口随便逛逛。' }}</p>
             <div class="empty-actions">
                 <el-button type="primary" @click="emit('navigate', '/upload')">去上传</el-button>
                 <el-button plain @click="emit('navigate', '/search')">去探索</el-button>

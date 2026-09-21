@@ -122,7 +122,6 @@ const formatStatValue = (compact: number, expanded: number) => {
     <article class="card stats-card">
         <div class="card-top">
             <div>
-                <p class="card-kicker">全量概览</p>
                 <h3>图库统计</h3>
             </div>
             <el-button class="stats-toggle" text bg @click="nextMode">
