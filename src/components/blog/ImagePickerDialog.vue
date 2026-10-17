@@ -2,11 +2,11 @@
 import { computed, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import type { UploadFile } from 'element-plus';
-import { Search, Upload as UploadIcon, Check } from '@element-plus/icons-vue';
+import { Search, Upload as UploadIcon, Check, ArrowLeft } from '@element-plus/icons-vue';
 import { GetImageSrc, ResponseWithError } from '@/api/token';
-import { searchImages, uploadImage } from '@/api/componentRequests';
+import { listCollectionImages, searchCollections, searchImages, uploadImage } from '@/api/componentRequests';
 import type { SearchRequest } from '@/api/componentRequests';
-import { mockImages } from '@/mocks/blog';
+import { mockCollectionItems, mockCollections, mockImages } from '@/mocks/blog';
 import { localDateString } from '@/api/blog';
 import type { MockImageResult } from '@/mocks/blog';
 
@@ -33,7 +33,7 @@ const visible = computed({
     set: (value: boolean) => emit('update:modelValue', value),
 });
 
-const activeTab = ref<'library' | 'upload'>('library');
+const activeTab = ref<'library' | 'collections' | 'upload'>('library');
 const query = ref('');
 const loading = ref(false);
 const page = ref(1);
@@ -44,8 +44,16 @@ const selected = ref<MockImageResult[]>([]);
 const files = ref<UploadFile[]>([]);
 const uploading = ref(false);
 const uploadProgress = ref(0);
+const collections = ref<MockImageResult[]>([]);
+const collectionsLoading = ref(false);
+const collectionQuery = ref('');
+const selectedCollection = ref<MockImageResult | null>(null);
+const collectionItems = ref<MockImageResult[]>([]);
+const collectionItemsLoading = ref(false);
 
 let requestSeq = 0;
+let collectionRequestSeq = 0;
+let itemRequestSeq = 0;
 
 const selectedSet = computed(() => new Set(selected.value.map((item) => item.src)));
 
@@ -106,19 +114,109 @@ const load = async () => {
     }
 };
 
+const loadCollections = async () => {
+    if (props.mock) {
+        const keyword = collectionQuery.value.trim();
+        collections.value = keyword
+            ? mockCollections.filter((item) => `${item.title} ${item.date}`.includes(keyword))
+            : [...mockCollections];
+        return;
+    }
+    const seq = ++collectionRequestSeq;
+    collectionsLoading.value = true;
+    try {
+        const response = await searchCollections({
+            searchKey: collectionQuery.value.trim(),
+            page: 1,
+            pageSize: 100,
+        });
+        if (seq !== collectionRequestSeq) return;
+        collections.value = (response.items ?? []).map((item) => ({
+            src: item.src,
+            title: item.title,
+            date: item.date,
+            isCollection: true,
+            itemCount: item.itemCount,
+        }));
+    } catch (error) {
+        if (seq === collectionRequestSeq) {
+            console.error('load collections failed', error);
+            ElMessage.error('加载合集失败');
+        }
+    } finally {
+        if (seq === collectionRequestSeq) {
+            collectionsLoading.value = false;
+        }
+    }
+};
+
+const openCollection = async (collection: MockImageResult) => {
+    selectedCollection.value = collection;
+    collectionItems.value = [];
+    if (props.mock) {
+        collectionItems.value = [...(mockCollectionItems[collection.src] ?? [])];
+        return;
+    }
+    const seq = ++itemRequestSeq;
+    collectionItemsLoading.value = true;
+    try {
+        const items = await listCollectionImages(collection.src);
+        if (seq !== itemRequestSeq) return;
+        collectionItems.value = items.map((item) => ({
+            src: item.image_href,
+            title: item.title || item.image_href,
+            date: item.date || collection.date,
+            isCollection: false,
+            collectionHref: item.collection_href || collection.src,
+            collectionTitle: item.collection_title || collection.title,
+        }));
+    } catch (error) {
+        if (seq === itemRequestSeq) {
+            console.error('load collection items failed', error);
+            ElMessage.error('加载合集图片失败');
+        }
+    } finally {
+        if (seq === itemRequestSeq) {
+            collectionItemsLoading.value = false;
+        }
+    }
+};
+
+const backToCollections = () => {
+    selectedCollection.value = null;
+    collectionItems.value = [];
+};
+
+const searchCollection = () => {
+    void loadCollections();
+};
+
 const reset = () => {
+    requestSeq += 1;
+    collectionRequestSeq += 1;
+    itemRequestSeq += 1;
     selected.value = [];
     files.value = [];
     uploadProgress.value = 0;
     page.value = 1;
     query.value = '';
     activeTab.value = 'library';
+    collections.value = [];
+    collectionQuery.value = '';
+    selectedCollection.value = null;
+    collectionItems.value = [];
 };
 
 watch(() => props.modelValue, (isOpen) => {
     if (isOpen) {
         reset();
         void load();
+    }
+});
+
+watch(activeTab, (tab) => {
+    if (tab === 'collections' && !collections.value.length) {
+        void loadCollections();
     }
 });
 
@@ -256,6 +354,58 @@ const confirm = () => {
                 </div>
             </el-tab-pane>
 
+            <el-tab-pane label="合集" name="collections">
+                <template v-if="selectedCollection">
+                    <div class="collection-detail-header">
+                        <el-button link :icon="ArrowLeft" @click="backToCollections">返回合集</el-button>
+                        <div class="collection-detail-title">
+                            <strong>{{ selectedCollection.title }}</strong>
+                            <span>{{ collectionItems.length }} 张图片</span>
+                        </div>
+                    </div>
+
+                    <div v-loading="collectionItemsLoading" class="image-grid">
+                        <button v-for="image in collectionItems" :key="image.src" type="button" class="image-card"
+                            :class="{ selected: selectedSet.has(image.src) }" @click="toggle(image)">
+                            <img :src="thumbUrl(image.src)" :alt="image.title" loading="lazy" />
+                            <span v-if="selectedSet.has(image.src)" class="selected-check">
+                                <el-icon><Check /></el-icon>
+                            </span>
+                            <span class="image-meta">
+                                <strong>{{ image.title || image.src }}</strong>
+                                <small>{{ image.date }}</small>
+                            </span>
+                        </button>
+                        <el-empty v-if="!collectionItemsLoading && collectionItems.length === 0"
+                            description="这个合集暂无图片" />
+                    </div>
+                </template>
+
+                <template v-else>
+                    <div class="picker-search">
+                        <el-input v-model="collectionQuery" placeholder="搜索合集标题……" clearable
+                            @keyup.enter="searchCollection">
+                            <template #prefix>
+                                <el-icon><Search /></el-icon>
+                            </template>
+                        </el-input>
+                        <el-button type="primary" @click="searchCollection">搜索</el-button>
+                    </div>
+
+                    <div v-loading="collectionsLoading" class="collection-grid">
+                        <button v-for="collection in collections" :key="collection.src" type="button"
+                            class="collection-card" @click="openCollection(collection)">
+                            <img :src="thumbUrl(collection.src)" :alt="collection.title" loading="lazy" />
+                            <span class="collection-card-meta">
+                                <strong>{{ collection.title }}</strong>
+                                <small>{{ collection.itemCount ?? 0 }} 张图片 · {{ collection.date }}</small>
+                            </span>
+                        </button>
+                        <el-empty v-if="!collectionsLoading && collections.length === 0" description="没有找到合集" />
+                    </div>
+                </template>
+            </el-tab-pane>
+
             <el-tab-pane label="上传新图片" name="upload">
                 <el-upload drag multiple :auto-upload="false" :on-change="onFileChange" accept="image/*"
                     :file-list="files">
@@ -389,6 +539,93 @@ const confirm = () => {
     display: flex;
     justify-content: center;
     margin-top: 16px;
+}
+
+.collection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 12px;
+    min-height: 200px;
+    max-height: 55vh;
+    overflow-y: auto;
+    padding: 2px;
+}
+
+.collection-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0;
+    border: 1px solid #ebeef5;
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.collection-card:hover {
+    border-color: #409eff;
+    box-shadow: 0 6px 18px rgba(64, 158, 255, 0.15);
+    transform: translateY(-1px);
+}
+
+.collection-card img {
+    width: 100%;
+    height: 130px;
+    object-fit: cover;
+    background: #f5f7fa;
+}
+
+.collection-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 0 10px 10px;
+    min-width: 0;
+}
+
+.collection-card-meta strong {
+    font-size: 13px;
+    color: #303133;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.collection-card-meta small {
+    color: #909399;
+    font-size: 11px;
+}
+
+.collection-detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.collection-detail-title {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+}
+
+.collection-detail-title strong {
+    color: #303133;
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.collection-detail-title span {
+    color: #909399;
+    font-size: 12px;
+    white-space: nowrap;
 }
 
 .upload-actions {

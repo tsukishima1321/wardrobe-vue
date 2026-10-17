@@ -37,7 +37,7 @@ const loading = ref(false);
 const totalItems = ref(0);
 const totalPage = ref(0);
 const page = ref(1);
-const pageSize = 12;
+const pageSize = 48;
 const query = ref('');
 const activeTag = ref('');
 const kind = ref<'' | 'note' | 'article'>('');
@@ -192,11 +192,6 @@ onMounted(async () => {
 <template>
     <div class="blog-feed">
         <header class="feed-header">
-            <div>
-                <p class="eyebrow">DIARY / BLOG</p>
-                <h1>日记</h1>
-                <p class="feed-subtitle">随手记下，慢慢展开。共 {{ totalItems }} 篇内容。</p>
-            </div>
             <div class="feed-actions">
                 <el-button type="primary" :icon="EditPen" @click="openQuickCapture()">随手一记</el-button>
                 <el-button :icon="Plus" @click="openEditor">写长文</el-button>

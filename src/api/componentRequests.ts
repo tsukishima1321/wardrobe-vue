@@ -123,6 +123,25 @@ export interface CollectionItem {
     image_href: string;
     sort_order: number;
     liked: boolean;
+    title?: string;
+    date?: string;
+    collection_href?: string;
+    collection_title?: string;
+}
+
+export interface CollectionSearchItem {
+    src: string;
+    title: string;
+    date: string;
+    itemCount: number;
+}
+
+export interface CollectionSearchResponse {
+    items: CollectionSearchItem[];
+    total: number;
+    totalPage: number;
+    page: number;
+    pageSize: number;
 }
 
 export interface ImageUsagePost {
@@ -613,6 +632,14 @@ export const removeImageFromCollection = async (src: string, image_href: string)
 
 export const deleteCollection = async (src: string): Promise<{ status: string }> => {
     return fetchDataAutoRetry('/api/collection/delete/', { src }, 'POST') as Promise<{ status: string }>;
+};
+
+export const searchCollections = async (params: { searchKey?: string; page?: number; pageSize?: number }): Promise<CollectionSearchResponse> => {
+    return fetchDataAutoRetry('/api/collection/search/', {
+        searchKey: params.searchKey ?? '',
+        page: params.page ?? 1,
+        pageSize: params.pageSize ?? 24,
+    }, 'POST') as Promise<CollectionSearchResponse>;
 };
 
 export const listCollectionImages = async (src: string): Promise<CollectionItem[]> => {

@@ -105,7 +105,7 @@ const open = () => emit('open', props.post);
 }
 
 .post-card.kind-note {
-    background: linear-gradient(180deg, #fffdf8 0%, #ffffff 100%);
+    
 }
 
 .post-cover {

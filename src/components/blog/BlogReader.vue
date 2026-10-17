@@ -167,9 +167,11 @@ onMounted(load);
                     <h2>本文图片</h2>
                     <div class="reader-image-grid">
                         <router-link v-for="image in post.images" :key="image.href"
-                            :to="{ name: 'detail', params: { src: image.href } }" class="reader-image-link">
+                            :to="image.collectionHref
+                                ? { name: 'detail', params: { src: image.collectionHref } }
+                                : { name: 'detail', params: { src: image.href } }" class="reader-image-link">
                             <img :src="blogImageUrl(image.href, 'small')" :alt="image.href" loading="lazy" />
-                            <span>{{ image.href }}</span>
+                            <span>{{ image.collectionHref ? `合集内图片 · ${image.href}` : image.href }}</span>
                         </router-link>
                     </div>
                 </section>

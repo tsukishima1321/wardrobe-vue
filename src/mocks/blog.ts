@@ -112,11 +112,33 @@ export interface MockImageResult {
     title: string;
     date: string;
     isCollection: boolean;
+    itemCount?: number;
+    collectionHref?: string;
+    collectionTitle?: string;
 }
 
 export const mockImages: MockImageResult[] = [
     { src: 'mock-october-wind.jpg', title: '十月的风', date: '2026-10-17', isCollection: false },
     { src: 'mock-river.jpg', title: '河边', date: '2026-10-15', isCollection: false },
     { src: 'mock-desk.jpg', title: '整理桌面', date: '2026-10-12', isCollection: false },
-    { src: 'mock-collection.jpg', title: '夏日合集', date: '2026-08-01', isCollection: true },
+    { src: 'mock-collection.jpg', title: '夏日合集', date: '2026-08-01', isCollection: true, itemCount: 4 },
 ];
+
+export const mockCollections: MockImageResult[] = [
+    { src: 'mock-collection.jpg', title: '夏日合集', date: '2026-08-01', isCollection: true, itemCount: 4 },
+    { src: 'mock-collection-cafe.jpg', title: '咖啡馆的下午', date: '2026-06-18', isCollection: true, itemCount: 3 },
+];
+
+export const mockCollectionItems: Record<string, MockImageResult[]> = {
+    'mock-collection.jpg': [
+        { src: 'mock-summer-1.jpg', title: '夏日合集 · 海边', date: '2026-08-01', isCollection: false, collectionHref: 'mock-collection.jpg', collectionTitle: '夏日合集' },
+        { src: 'mock-summer-2.jpg', title: '夏日合集 · 树影', date: '2026-08-01', isCollection: false, collectionHref: 'mock-collection.jpg', collectionTitle: '夏日合集' },
+        { src: 'mock-summer-3.jpg', title: '夏日合集 · 傍晚', date: '2026-08-01', isCollection: false, collectionHref: 'mock-collection.jpg', collectionTitle: '夏日合集' },
+        { src: 'mock-summer-4.jpg', title: '夏日合集 · 街道', date: '2026-08-01', isCollection: false, collectionHref: 'mock-collection.jpg', collectionTitle: '夏日合集' },
+    ],
+    'mock-collection-cafe.jpg': [
+        { src: 'mock-cafe-1.jpg', title: '咖啡馆的下午 · 窗边', date: '2026-06-18', isCollection: false, collectionHref: 'mock-collection-cafe.jpg', collectionTitle: '咖啡馆的下午' },
+        { src: 'mock-cafe-2.jpg', title: '咖啡馆的下午 · 咖啡', date: '2026-06-18', isCollection: false, collectionHref: 'mock-collection-cafe.jpg', collectionTitle: '咖啡馆的下午' },
+        { src: 'mock-cafe-3.jpg', title: '咖啡馆的下午 · 书页', date: '2026-06-18', isCollection: false, collectionHref: 'mock-collection-cafe.jpg', collectionTitle: '咖啡馆的下午' },
+    ],
+};
