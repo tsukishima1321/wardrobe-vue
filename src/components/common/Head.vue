@@ -1,10 +1,11 @@
 <script setup lang="ts">
 
 import favicon from '@/assets/icons/favicon.ico';
-import { Management, Picture, PictureRounded, Notebook, Bell, Check, Link } from '@element-plus/icons-vue';
+import { Management, Picture, PictureRounded, Notebook, Bell, Check, Link, EditPen } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
 import { onMounted, onUnmounted, ref, computed } from 'vue';
 import { AuthenticationError, refreshAccessToken } from '@/api/token';
+import { openQuickCapture } from '@/composables/useQuickCapture';
 import { clearReadMessages as clearReadMessagesRequest, createMessageStream, getMessageList, markMessageRead } from '@/api/componentRequests';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
@@ -218,6 +219,9 @@ onUnmounted(() => {
         <el-menu-item index="/manage"><el-icon>
                 <Management />
             </el-icon>管理</el-menu-item>
+        <el-menu-item class="quick-capture-item">
+            <el-button link :icon="EditPen" @click.stop="openQuickCapture">随手一记</el-button>
+        </el-menu-item>
         <el-menu-item class="notification-item">
             <el-dropdown trigger="hover" @command="handleCommand">
                 <span class="el-dropdown-link">

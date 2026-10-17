@@ -125,6 +125,15 @@ export interface CollectionItem {
     liked: boolean;
 }
 
+export interface ImageUsagePost {
+    id: number;
+    title: string;
+    date: string;
+    status: string;
+    kind: string;
+    role: string;
+}
+
 export interface ImageData {
     src: string;
     title: string;
@@ -134,6 +143,7 @@ export interface ImageData {
     properties?: Array<ImageProperty>;
     is_collection?: boolean;
     items?: CollectionItem[];
+    usedInPosts?: ImageUsagePost[];
 }
 
 export interface OcrMissionItem {

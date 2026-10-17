@@ -39,6 +39,26 @@ const router = createRouter({
       component: () => import('../views/DiaryView.vue')
     },
     {
+      path: '/diary/archive/:year/:month',
+      name: 'blog-archive',
+      component: () => import('../components/blog/BlogFeed.vue')
+    },
+    {
+      path: '/diary/new',
+      name: 'blog-editor',
+      component: () => import('../components/blog/BlogEditor.vue')
+    },
+    {
+      path: '/diary/:id/edit',
+      name: 'blog-editor-edit',
+      component: () => import('../components/blog/BlogEditor.vue')
+    },
+    {
+      path: '/diary/:id',
+      name: 'blog-post',
+      component: () => import('../components/blog/BlogReader.vue')
+    },
+    {
       path: '/gallery',
       name: 'gallery',
       component: () => import('../views/GalleryView.vue')

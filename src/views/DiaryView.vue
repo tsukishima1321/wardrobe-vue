@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import DiaryOverview from '../components/DiaryOverview.vue'
+import BlogFeed from '../components/blog/BlogFeed.vue'
 </script>
 
 <template>
-  <DiaryOverview />
+  <BlogFeed />
 </template>

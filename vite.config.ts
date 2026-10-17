@@ -24,6 +24,9 @@ export default defineConfig({
             if (id.includes('echarts')) {
               return 'echarts';
             }
+            if (id.includes('@tiptap') || id.includes('prosemirror') || id.includes('@floating-ui')) {
+              return 'tiptap';
+            }
             if (id.includes('lodash')) {
               return 'lodash';
             }

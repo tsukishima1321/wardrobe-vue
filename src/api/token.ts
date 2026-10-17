@@ -31,36 +31,44 @@ export function GetImageSrc(url: string): string {
 }
 
 export async function fetchJsonWithToken(url: string, token: string, para: object, method: string, json: boolean): Promise<object> {
-    let response;
-    if (method == 'POST') {
-        response = await fetch(url, {
-            method: "POST",
-            body: json ? JSON.stringify(para) : para as any,
-            headers: json ? {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
-            } : {
-                'Authorization': 'Bearer ' + token
-            }
-        });
-    } else {
-        response = await fetch(url, {
-            method: "GET",
-            headers: {
-                'Content-Type': 'form-data',
-                'Authorization': 'Bearer ' + token
-            }
-        });
+    const headers: Record<string, string> = {
+        'Authorization': 'Bearer ' + token,
+    };
+    const init: RequestInit = { method };
+    if (method !== 'GET' && method !== 'HEAD') {
+        if (json) {
+            headers['Content-Type'] = 'application/json';
+            init.body = JSON.stringify(para);
+        } else {
+            init.body = para as BodyInit;
+        }
+    }
+    init.headers = headers;
+
+    const response = await fetch(url, init);
+
+    if (response.status === 204) {
+        return {};
+    }
+
+    let data: any = {};
+    const text = await response.text();
+    if (text) {
+        try {
+            data = JSON.parse(text);
+        } catch {
+            data = { message: text };
+        }
     }
 
     if (!response.ok) {
         if (response.status === 401) {
             return { message: 'not authorized' };
         }
-        throw new ResponseWithError('Network response was not ok', await response.json());
+        throw new ResponseWithError('Network response was not ok', data);
     }
 
-    return response.json();
+    return data;
 }
 
 let refreshPromise: Promise<boolean> | null = null;

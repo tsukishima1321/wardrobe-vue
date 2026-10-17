@@ -17,6 +17,7 @@ import StatsCard from './home/StatsCard.vue';
 import TimelineReport from './home/TimelineReport.vue';
 import PropertyDistributionCard from './home/PropertyDistributionCard.vue';
 import { GetImageSrc } from '../api/token';
+import { openQuickCapture } from '@/composables/useQuickCapture';
 import {
     generateTips as requestGenerateTips,
     getHomeDiscovery,
@@ -287,21 +288,8 @@ const fetchLatestDiary = async () => {
 
 const navigateTo = (path: string) => router.push(path);
 
-const DIARY_FOCUS_STORAGE_KEY = 'wardrobe-focus-diary';
-
 const openDiaryEntry = (diary: { id: number; date: string; text: string }) => {
-    sessionStorage.setItem(DIARY_FOCUS_STORAGE_KEY, JSON.stringify({
-        id: diary.id,
-        date: diary.date,
-        text: diary.text,
-    }));
-    router.push({
-        path: '/diary',
-        query: {
-            diaryId: String(diary.id),
-            diaryDate: diary.date,
-        },
-    });
+    router.push({ name: 'blog-post', params: { id: String(diary.id) } });
 };
 
 const openHeroMemory = () => {
@@ -405,7 +393,7 @@ onMounted(async () => {
                         </el-icon>
                         <strong>上传照片</strong>
                     </div>
-                    <div class="action-btn" @click="navigateTo('/diary')">
+                    <div class="action-btn" @click="openQuickCapture()">
                         <el-icon>
                             <Notebook />
                         </el-icon>

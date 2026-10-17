@@ -22,8 +22,8 @@ import {
     likeCollectionImage,
     reorderCollection
 } from '@/api/componentRequests';
-import type { CollectionItem, ReorderItem } from '@/api/componentRequests';
-import { ZoomIn, ZoomOut, Refresh, Picture, Edit, Check, Plus, Delete, Collection, Upload as UploadIcon, Star, StarFilled, ArrowLeft, ArrowRight } from '@element-plus/icons-vue';
+import type { CollectionItem, ImageUsagePost, ReorderItem } from '@/api/componentRequests';
+import { ZoomIn, ZoomOut, Refresh, Picture, Edit, Check, Plus, Delete, Collection, Upload as UploadIcon, Star, StarFilled, ArrowLeft, ArrowRight, Notebook } from '@element-plus/icons-vue';
 import { ElImageViewer } from 'element-plus';
 
 const router = useRouter();
@@ -67,6 +67,7 @@ const keywords = ref<string[]>([]);
 const newKeyword = ref('');
 const keywordActionPending = ref(false);
 const propertys = ref<ImageProperty[]>([]);
+const usedInPosts = ref<ImageUsagePost[]>([]);
 const newPropertyName = ref('');
 const newPropertyValue = ref('');
 const propertyActionPending = ref(false);
@@ -87,7 +88,8 @@ interface imgData {
     is_collection?: boolean,
     items?: CollectionItem[],
     keywords?: Array<string>,
-    propertys?: Array<ImageProperty>
+    propertys?: Array<ImageProperty>,
+    usedInPosts?: ImageUsagePost[]
 }
 
 const loadCollectionImages = async () => {
@@ -120,6 +122,7 @@ const loadImg = async () => {
         keywords.value = keywordsData as Array<string>;
         const propertysData = await getPropertyList(imgSrc.value as string);
         propertys.value = propertysData as Array<ImageProperty>;
+        usedInPosts.value = r.usedInPosts ?? [];
     } catch {
         router.push('/login');
     }
@@ -130,6 +133,10 @@ const loadImg = async () => {
         await loadCollectionImages();
     }
 }
+
+const insertToDiary = () => {
+    router.push({ name: 'blog-editor', query: { image: String(imgSrc.value) } });
+};
 
 const startEdit = () => {
     if (enableEdit.value || enableEditText.value) {
@@ -732,6 +739,11 @@ watch(showViewOriginalBtn, (show) => {
                         <el-input v-else v-model="imgTitle" placeholder="图片标题" class="title-input" size="large" />
 
                         <div class="actions">
+                            <el-button v-if="!enableEdit" link type="primary" @click="insertToDiary">
+                                <el-icon>
+                                    <Notebook />
+                                </el-icon> 插入到日记
+                            </el-button>
                             <el-button v-if="!enableEdit" link type="primary" @click="startEdit">
                                 <el-icon>
                                     <Edit />
@@ -802,6 +814,20 @@ watch(showViewOriginalBtn, (show) => {
                         <el-input ref="propertyValueInput" v-model="newPropertyValue" placeholder="属性值" style="flex: 1"
                             @keyup.enter.prevent="handlePropertyValueEnter" :disabled="propertyActionPending" />
                         <el-button @click="addProperty" :loading="propertyActionPending">添加</el-button>
+                    </div>
+                </div>
+
+                <el-divider v-if="usedInPosts.length" />
+
+                <div v-if="usedInPosts.length" class="section usage-section">
+                    <div class="section-title">被文章引用</div>
+                    <div class="usage-list">
+                        <el-button v-for="usage in usedInPosts" :key="usage.id" link type="primary"
+                            @click="router.push({ name: 'blog-post', params: { id: String(usage.id) } })">
+                            {{ usage.title || `文章 #${usage.id}` }} · {{ usage.date }}
+                            <el-tag v-if="usage.status === 'draft'" size="small" type="info" effect="plain"
+                                style="margin-left: 6px">草稿</el-tag>
+                        </el-button>
                     </div>
                 </div>
 
