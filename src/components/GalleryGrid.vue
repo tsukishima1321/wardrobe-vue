@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
-import { GetBlobImgSrc } from '@/api/token'
+import { GetImageSrc } from '@/api/token'
 
 export interface GalleryImageItem {
   src: string
   title: string
   date: string
   is_collection?: boolean
-  blobSrc: string
 }
 
 interface DateSection {
@@ -106,35 +105,22 @@ const virtualizer = useVirtualizer(computed(() => ({
   getScrollElement: () => scrollContainer.value ?? null,
   estimateSize: (index: number) => estimateSectionHeight(index),
   overscan: 5 as const,
-  onChange: () => {
-    loadVisibleThumbnails()
-  },
 })))
 
-const loadingThumbs = new Set<string>()
+const thumbnailVersions = new Map<string, number>()
 
-function loadVisibleThumbnails() {
-  const indices = new Set<number>()
-  for (const item of virtualizer.value.getVirtualItems()) {
-    indices.add(item.index)
-  }
-  for (const idx of indices) {
-    const section = sections.value[idx]
-    if (!section) continue
-    for (const img of section.images) {
-      const key = `${thumbnailSize.value}/${img.src}`
-      if (img.blobSrc || loadingThumbs.has(key)) continue
-      loadingThumbs.add(key)
-      const suffix = img.is_collection ? `?${Date.now()}` : ''
-      const url = `/imagebed/thumbnails/${thumbnailSize.value}/${img.src}${suffix}`
-      GetBlobImgSrc(url).then(blobSrc => {
-        img.blobSrc = blobSrc
-        loadingThumbs.delete(key)
-      }).catch(() => {
-        loadingThumbs.delete(key)
-      })
+function thumbnailUrl(img: GalleryImageItem): string {
+  const key = `${thumbnailSize.value}/${img.src}`
+  let suffix = ''
+  if (img.is_collection) {
+    let version = thumbnailVersions.get(key)
+    if (!version) {
+      version = Date.now()
+      thumbnailVersions.set(key, version)
     }
+    suffix = `?${version}`
   }
+  return GetImageSrc(`/imagebed/thumbnails/${thumbnailSize.value}/${img.src}${suffix}`)
 }
 
 let lastPinchDist = 0
@@ -194,18 +180,7 @@ function openDetail(src: string) {
 }
 
 watch(zoomLevel, () => {
-  for (const img of props.images) {
-    if (img.blobSrc) {
-      if (img.blobSrc.startsWith('blob:')) {
-        URL.revokeObjectURL(img.blobSrc)
-      }
-      img.blobSrc = ''
-    }
-  }
-  loadingThumbs.clear()
-  nextTick(() => {
-    loadVisibleThumbnails()
-  })
+  thumbnailVersions.clear()
 })
 
 defineExpose({ zoomLevel })
@@ -222,8 +197,7 @@ defineExpose({ zoomLevel })
         <div class="section-grid" :style="{ gridTemplateColumns: `repeat(${columns}, 1fr)` }">
           <div v-for="img in sections[vItem.index].images" :key="img.src" class="thumbnail-item"
             @click="openDetail(img.src)">
-            <img v-if="img.blobSrc" :src="img.blobSrc" :alt="img.title" />
-            <div v-else class="thumbnail-placeholder"></div>
+            <img :src="thumbnailUrl(img)" :alt="img.title" loading="lazy" />
           </div>
         </div>
       </div>

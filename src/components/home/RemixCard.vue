@@ -2,7 +2,7 @@
 import type { HomeDiscoveryRemixModule, HomeDiscoveryDiary, HomeDiscoveryPicture } from '@/api/componentRequests'
 
 interface DiscoveryVisual extends HomeDiscoveryPicture {
-    blobSrc: string
+    thumbSrc: string
 }
 
 defineProps<{
@@ -42,7 +42,7 @@ const truncateText = (text: string, maxLength = 96): string => {
         <template v-else-if="remixModule && !remixModule.empty">
             <button v-if="remixAnchorVisual" type="button" class="remix-anchor"
                 @click="emit('open-detail', remixAnchorVisual.src)">
-                <img :src="remixAnchorVisual.blobSrc" class="remix-anchor-image" alt="" />
+                <img :src="remixAnchorVisual.thumbSrc" class="remix-anchor-image" alt="" />
                 <div class="remix-anchor-copy">
                     <span>{{ remixAnchorVisual.date }}</span>
                     <strong>{{ remixAnchorVisual.title || '查看锚点记忆' }}</strong>
@@ -52,7 +52,7 @@ const truncateText = (text: string, maxLength = 96): string => {
             <div v-if="remixRelatedVisuals.length" class="remix-collage">
                 <button v-for="item in remixRelatedVisuals" :key="`remix-${item.src}`" type="button"
                     class="remix-thumb" @click="emit('open-detail', item.src)">
-                    <img :src="item.blobSrc" alt="" />
+                    <img :src="item.thumbSrc" alt="" />
                     <span>{{ item.date }}</span>
                 </button>
             </div>

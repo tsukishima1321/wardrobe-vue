@@ -2,7 +2,7 @@
 import { useRouter } from "vue-router";
 import { ref, computed, watch, nextTick } from 'vue';
 import { ElMessage, ElLoading, ElInput, ElMessageBox } from 'element-plus';
-import { GetBlobImgSrc } from '../api/token.ts';
+import { GetImageSrc } from '../api/token.ts';
 import {
     createKeyword,
     createOcrMission,
@@ -28,14 +28,19 @@ import { ElImageViewer } from 'element-plus';
 
 const router = useRouter();
 const imgSrc = ref(router.currentRoute.value.params.src);
-const blobSrc = ref('');
+const imageVersion = ref(0);
+const imageSrc = computed(() => {
+    const version = imageVersion.value ? `?v=${imageVersion.value}` : '';
+    return GetImageSrc(`/imagebed/${imgSrc.value}${version}`);
+});
 const enableEdit = ref(false);
 const enableEditText = ref(false);
 const imgLoading = ref(true);
 
 // Collection state
 const isCollection = ref(false);
-const collectionItems = ref<Array<CollectionItem & { blobSrc: string }>>([]);
+const collectionItems = ref<CollectionItem[]>([]);
+const collectionVersion = ref(0);
 const collectionLoading = ref(false);
 const addImageDialogVisible = ref(false);
 const selectedFiles = ref<File[]>([]);
@@ -45,7 +50,6 @@ const addTotal = ref(0);
 const previewVisible = ref(false);
 const previewIndex = ref(0);
 const previewFullSrcs = ref<Record<number, string>>({}); // 缓存已加载的原图URL，key为collectionItems的index
-const originalLoading = ref(false);
 
 const dragIndex = ref<number | null>(null);
 const dragOverIndex = ref<number | null>(null);
@@ -92,19 +96,17 @@ const loadCollectionImages = async () => {
     try {
         const items = await listCollectionImages(imgSrc.value as string);
         items.sort((a, b) => a.sort_order - b.sort_order);
-        collectionItems.value = items.map(item => ({ ...item, blobSrc: '' }));
-        // Load thumbnails only
-        for (const item of collectionItems.value) {
-            GetBlobImgSrc("/imagebed/thumbnails/" + item.image_href).then(src => {
-                item.blobSrc = src;
-            }).catch(() => { });
-        }
+        collectionItems.value = items;
+        collectionVersion.value++;
     } catch {
         ElMessage.error('加载合集图片失败');
     } finally {
         collectionLoading.value = false;
     }
 };
+
+const collectionThumbUrl = (item: CollectionItem) =>
+    GetImageSrc(`/imagebed/thumbnails/${item.image_href}?v=${collectionVersion.value}`);
 
 const loadImg = async () => {
     imgLoading.value = true;
@@ -122,13 +124,7 @@ const loadImg = async () => {
         router.push('/login');
     }
 
-    try {
-        blobSrc.value = await GetBlobImgSrc("/imagebed/" + imgSrc.value);
-    } catch {
-        ElMessage.error('图片加载失败');
-    } finally {
-        imgLoading.value = false;
-    }
+    imgLoading.value = false;
 
     if (isCollection.value) {
         await loadCollectionImages();
@@ -359,8 +355,7 @@ const submitAddImages = async () => {
         selectedFiles.value = [];
         addImageDialogVisible.value = false;
         await loadCollectionImages();
-        // Refresh thumbnail (the backend regenerates it)
-        blobSrc.value = await GetBlobImgSrc("/imagebed/" + imgSrc.value + '?t=' + Date.now());
+        imageVersion.value++;
     } catch (error: any) {
         if (error?.data?.status === 'Already exists') {
             ElMessage.warning('部分图片已在合集中');
@@ -382,7 +377,7 @@ const handleRemoveFromCollection = async (imageHref: string) => {
         await removeImageFromCollection(imgSrc.value as string, imageHref);
         ElMessage.success('图片已从合集中移除');
         await loadCollectionImages();
-        blobSrc.value = await GetBlobImgSrc("/imagebed/" + imgSrc.value + '?t=' + Date.now());
+        imageVersion.value++;
     } catch (e) {
         // cancelled or error
     }
@@ -426,14 +421,14 @@ const previewCurrentUrl = computed(() => {
         return previewFullSrcs.value[idx];
     }
     const item = collectionItems.value[idx];
-    return item?.blobSrc || '';
+    return item ? collectionThumbUrl(item) : '';
 });
 
 const previewUrlList = computed(() => [previewCurrentUrl.value]);
 
 const showViewOriginalBtn = computed(() => {
     const idx = previewIndex.value;
-    return !previewFullSrcs.value[idx] && !!collectionItems.value[idx]?.blobSrc;
+    return !previewFullSrcs.value[idx] && !!collectionItems.value[idx];
 });
 
 const openCollectionPreview = (index: number) => {
@@ -458,23 +453,18 @@ window.addEventListener('keydown', (event) => {
     }
 });
 
-const loadCurrentOriginal = async () => {
-    originalLoading.value = true;
-    try {
-        await loadOriginalForIndex(previewIndex.value);
-    } finally {
-        originalLoading.value = false;
-    }
+const loadCurrentOriginal = () => {
+    loadOriginalForIndex(previewIndex.value);
 };
 
-const loadOriginalForIndex = async (index: number) => {
+const loadOriginalForIndex = (index: number) => {
     if (previewFullSrcs.value[index]) return;
     const item = collectionItems.value[index];
     if (!item) return;
-    try {
-        const fullSrc = await GetBlobImgSrc("/imagebed/" + item.image_href);
-        previewFullSrcs.value = { ...previewFullSrcs.value, [index]: fullSrc };
-    } catch { }
+    previewFullSrcs.value = {
+        ...previewFullSrcs.value,
+        [index]: GetImageSrc("/imagebed/" + item.image_href),
+    };
 };
 
 const onDragStart = (index: number, event: DragEvent) => {
@@ -581,14 +571,6 @@ watch(previewVisible, (visible) => {
     }
 });
 
-watch(originalLoading, (loading) => {
-    if (injectedBtn) {
-        injectedBtn.disabled = loading;
-        injectedBtn.textContent = loading ? '加载中...' : '查看原图';
-        injectedBtn.style.opacity = loading ? '0.6' : '1';
-    }
-});
-
 watch(showViewOriginalBtn, (show) => {
     if (injectedBtn) {
         injectedBtn.style.display = show ? '' : 'none';
@@ -611,7 +593,7 @@ watch(showViewOriginalBtn, (show) => {
                                     style="width: 100%; height: 80vh; border-radius: 8px;" />
                             </template>
                         </el-skeleton>
-                        <el-image v-show="!imgLoading" :src="blobSrc" :preview-src-list="[blobSrc]" class="main-image">
+                        <el-image v-show="!imgLoading" :src="imageSrc" :preview-src-list="[imageSrc]" class="main-image">
                             <template #error>
                                 <div class="image-error">
                                     <el-icon>
@@ -661,7 +643,7 @@ watch(showViewOriginalBtn, (show) => {
                             @drop="onDrop(index)"
                             @dragend="onDragEnd">
                             <div class="collection-img-wrapper">
-                                <el-image :src="item.blobSrc" fit="cover" class="collection-thumb"
+                                <el-image :src="collectionThumbUrl(item)" fit="cover" class="collection-thumb"
                                     @click="openCollectionPreview(index)">
                                     <template #error>
                                         <div class="image-error">

@@ -3,7 +3,7 @@ import { Refresh } from '@element-plus/icons-vue'
 import type { HomeDiscoveryHeroModule, HomeDiscoveryDiary, HomeDiscoveryPicture, ImageProperty } from '@/api/componentRequests'
 
 interface DiscoveryVisual extends HomeDiscoveryPicture {
-    blobSrc: string
+    thumbSrc: string
 }
 
 defineProps<{
@@ -60,7 +60,7 @@ const truncateText = (text: string, maxLength = 96): string => {
 
         <template v-else-if="heroModule && !heroModule.empty">
             <button type="button" class="hero-media" @click="emit('open-hero-memory')">
-                <img v-if="heroPrimaryVisual" :src="heroPrimaryVisual.blobSrc" class="hero-image" alt="" />
+                <img v-if="heroPrimaryVisual" :src="heroPrimaryVisual.thumbSrc" class="hero-image" alt="" />
                 <div class="hero-surface"></div>
                 <div class="hero-media-meta">
                     <span class="hero-date">{{ heroPrimaryVisual?.date || heroDiary?.date || generatedAt }}</span>
@@ -71,7 +71,7 @@ const truncateText = (text: string, maxLength = 96): string => {
             <div v-if="heroSecondaryVisuals.length" class="hero-gallery">
                 <button v-for="item in heroSecondaryVisuals" :key="`hero-${item.src}`" type="button"
                     class="hero-gallery-item" @click="emit('open-detail', item.src)">
-                    <img :src="item.blobSrc" :alt="item.title || item.date" />
+                    <img :src="item.thumbSrc" :alt="item.title || item.date" />
                     <span>{{ item.date }}</span>
                 </button>
             </div>

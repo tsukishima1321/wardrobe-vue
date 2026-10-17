@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ArrowDown, ArrowUp, Loading, Refresh, Search as SearchIcon } from '@element-plus/icons-vue'
-import { GetBlobImgSrc } from '@/api/token'
+import { GetImageSrc } from '@/api/token'
 import {
     getPropertyDistribution,
     searchImages,
@@ -13,7 +13,7 @@ import {
 } from '@/api/componentRequests'
 
 interface VisualSample extends PropertyDistributionSample {
-    blobSrc: string
+    thumbSrc: string
 }
 
 interface VisualValue extends Omit<PropertyDistributionValue, 'samples'> {
@@ -36,7 +36,7 @@ interface ExpandedImage {
     title: string
     date: string
     isCollection: boolean
-    blobSrc: string
+    thumbSrc: string
 }
 
 const emit = defineEmits<{
@@ -65,39 +65,8 @@ const expandedScroll = ref<HTMLElement | null>(null)
 let requestId = 0
 let galleryRequestId = 0
 
-const cleanupSamples = (values: VisualValue[]) => {
-    values.forEach((item) => {
-        item.samples.forEach((sample) => {
-            if (sample.blobSrc.startsWith('blob:')) {
-                URL.revokeObjectURL(sample.blobSrc)
-            }
-        })
-    })
-}
-
-const hydrateSamples = async (values: VisualValue[], activeRequestId: number) => {
-    await Promise.all(values.flatMap((item) => item.samples.map(async (sample) => {
-        const suffix = sample.isCollection ? `?${Date.now()}` : ''
-        const blobSrc = await GetBlobImgSrc(`/imagebed/thumbnails/small/${sample.src}${suffix}`)
-        if (activeRequestId !== requestId) {
-            if (blobSrc.startsWith('blob:')) URL.revokeObjectURL(blobSrc)
-            return
-        }
-        sample.blobSrc = blobSrc
-    })))
-}
-
-const cleanupExpandedImages = () => {
-    expandedImages.value.forEach((image) => {
-        if (image.blobSrc.startsWith('blob:')) {
-            URL.revokeObjectURL(image.blobSrc)
-        }
-    })
-}
-
 const closeExpandedGallery = () => {
     galleryRequestId++
-    cleanupExpandedImages()
     expandedValue.value = ''
     expandedImages.value = []
     expandedPage.value = 0
@@ -105,22 +74,6 @@ const closeExpandedGallery = () => {
     expandedTotalItems.value = 0
     expandedLoading.value = false
     expandedError.value = ''
-}
-
-const hydrateExpandedImage = async (image: ExpandedImage, activeGalleryRequestId: number) => {
-    const suffix = image.isCollection ? `?${Date.now()}` : ''
-    const blobSrc = await GetBlobImgSrc(`/imagebed/thumbnails/small/${image.src}${suffix}`)
-    if (activeGalleryRequestId !== galleryRequestId) {
-        if (blobSrc.startsWith('blob:')) URL.revokeObjectURL(blobSrc)
-        return
-    }
-
-    const target = expandedImages.value.find((item) => item.src === image.src)
-    if (!target) {
-        if (blobSrc.startsWith('blob:')) URL.revokeObjectURL(blobSrc)
-        return
-    }
-    target.blobSrc = blobSrc
 }
 
 const loadExpandedPage = async (value: string) => {
@@ -158,13 +111,12 @@ const loadExpandedPage = async (value: string) => {
             title: item.title,
             date: item.date,
             isCollection: !!item.is_collection,
-            blobSrc: '',
+            thumbSrc: GetImageSrc(`/imagebed/thumbnails/small/${item.src}${item.is_collection ? `?${Date.now()}` : ''}`),
         }))
         expandedImages.value.push(...nextImages)
         expandedPage.value = nextPage
         expandedTotalPages.value = response.totalPage
         expandedTotalItems.value = response.total
-        nextImages.forEach((image) => hydrateExpandedImage(image, activeGalleryRequestId))
 
         await nextTick()
         const container = expandedScroll.value
@@ -208,16 +160,17 @@ const loadDistribution = async (
 
         const nextValues: VisualValue[] = response.values.map((item) => ({
             ...item,
-            samples: item.samples.map((sample) => ({ ...sample, blobSrc: '' })),
+            samples: item.samples.map((sample) => ({
+                ...sample,
+                thumbSrc: GetImageSrc(`/imagebed/thumbnails/small/${sample.src}${sample.isCollection ? `?${Date.now()}` : ''}`),
+            })),
         }))
 
-        cleanupSamples(visualValues.value)
         distribution.value = response
         visualValues.value = nextValues
         selectedProperty.value = response.property
         appliedSearchKey.value = response.searchKey
         searchInput.value = response.searchKey
-        hydrateSamples(visualValues.value, activeRequestId)
     } catch (error) {
         console.error('Failed to load property distribution', error)
         selectedProperty.value = previousProperty
@@ -320,7 +273,6 @@ onMounted(() => loadDistribution())
 
 onBeforeUnmount(() => {
     requestId++
-    cleanupSamples(visualValues.value)
     closeExpandedGallery()
 })
 </script>
@@ -424,12 +376,10 @@ onBeforeUnmount(() => {
                                 <span class="sample-stack">
                                     <span v-for="sample in row.samples" :key="sample.src" class="sample-image">
                                         <img
-                                            v-if="sample.blobSrc"
-                                            :src="sample.blobSrc"
+                                            :src="sample.thumbSrc"
                                             :alt="sample.title || row.label"
                                             @error="handleImageError"
                                         />
-                                        <i v-else />
                                     </span>
                                 </span>
                                 <el-icon v-if="row.value" class="expand-icon">
@@ -459,12 +409,11 @@ onBeforeUnmount(() => {
                                         @click="openExpandedImage(image.src)"
                                     >
                                         <img
-                                            v-if="image.blobSrc"
-                                            :src="image.blobSrc"
+                                            :src="image.thumbSrc"
                                             :alt="image.title"
+                                            loading="lazy"
                                             @error="handleImageError"
                                         />
-                                        <span v-else class="grid-placeholder" />
                                         <span v-if="image.isCollection" class="collection-badge">合集</span>
                                     </button>
                                 </div>

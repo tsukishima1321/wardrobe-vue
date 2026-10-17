@@ -42,7 +42,6 @@ async function fetchNextPage() {
         title: item.title,
         date: item.date,
         is_collection: item.is_collection,
-        blobSrc: '',
       })
     }
     await nextTick()

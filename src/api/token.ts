@@ -21,54 +21,13 @@ export class AuthenticationError extends Error {
     }
 }
 
-export async function GetBlobImgSrc(url: string): Promise<string> {
-    const token = localStorage.getItem('wardrobe-access-token') || 'default-token';
+export function GetImageSrc(url: string): string {
     const useLocalImagebed = localStorage.getItem('useLocalImagebed') === 'true';
     if (useLocalImagebed && url.indexOf('thumbnails') === -1) {
         const localImagebedPath = localStorage.getItem('localImagebedPath') || '';
         return `${localImagebedPath}${url}`;
     }
-    try {
-        const response = await fetch(url, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-                // 或者使用其他 token 格式
-                // 'X-Token': token
-            }
-        });
-
-        if (!response.ok) {
-            if (response.status === 401) {
-                // Token 过期，刷新 Token
-                const refreshToken = localStorage.getItem('wardrobe-refresh-token');
-                if (!refreshToken) {
-                    console.error('Refresh token not found!');
-                    throw new ResponseWithError('Refresh token failed', null);
-                }
-                try {
-                    const res = await refreshAccessToken(refreshToken);
-                    if (!res) {
-                        console.error('Refresh token failed');
-                        throw new ResponseWithError('Refresh token failed', null);
-                    }
-                } catch (error) {
-                    console.error('Refresh token failed:', error);
-                    throw new ResponseWithError('Refresh token failed', null);
-                }
-                // 重新加载图片
-                return GetBlobImgSrc(url);
-            }
-            throw new Error(`Image load failed! status: ${response.status}`);
-        } else {
-            const blob = await response.blob();
-            const objectUrl = URL.createObjectURL(blob);
-            return objectUrl;
-        }
-    } catch (error) {
-        console.error('图片加载失败:', error);
-        // 可以设置一个默认图片
-        return '/default-image.jpg';
-    }
+    return url;
 }
 
 export async function fetchJsonWithToken(url: string, token: string, para: object, method: string, json: boolean): Promise<object> {
@@ -104,7 +63,18 @@ export async function fetchJsonWithToken(url: string, token: string, para: objec
     return response.json();
 }
 
+let refreshPromise: Promise<boolean> | null = null;
+
 export async function refreshAccessToken(refreshToken: string): Promise<boolean> {
+    if (!refreshPromise) {
+        refreshPromise = performTokenRefresh(refreshToken).finally(() => {
+            refreshPromise = null;
+        });
+    }
+    return refreshPromise;
+}
+
+async function performTokenRefresh(refreshToken: string): Promise<boolean> {
     const response = await fetch('/api/refresh/', {
         method: 'POST',
         headers: {
@@ -115,11 +85,55 @@ export async function refreshAccessToken(refreshToken: string): Promise<boolean>
 
     if (!response.ok) {
         return false;
-    } else {
-        const data = await response.json() as TokenResponse;
-        localStorage.setItem('wardrobe-access-token', data.access);
+    }
+
+    const data = await response.json() as TokenResponse;
+    localStorage.setItem('wardrobe-access-token', data.access);
+    if (data.refresh) {
+        localStorage.setItem('wardrobe-refresh-token', data.refresh);
     }
     return true;
+}
+
+const TOKEN_REFRESH_INTERVAL_MS = 60 * 1000;
+const TOKEN_REFRESH_MARGIN_MS = 2 * 60 * 1000;
+
+function getTokenExpiry(token: string): number | null {
+    try {
+        const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')));
+        return typeof payload.exp === 'number' ? payload.exp * 1000 : null;
+    } catch {
+        return null;
+    }
+}
+
+export async function refreshAccessTokenIfNeeded(): Promise<boolean> {
+    const refreshToken = localStorage.getItem('wardrobe-refresh-token');
+    if (!refreshToken) {
+        return false;
+    }
+
+    const accessToken = localStorage.getItem('wardrobe-access-token');
+    const expiresAt = accessToken ? getTokenExpiry(accessToken) : null;
+    if (expiresAt && expiresAt - Date.now() > TOKEN_REFRESH_MARGIN_MS) {
+        return true;
+    }
+
+    return refreshAccessToken(refreshToken);
+}
+
+export function startTokenRefreshScheduler(): void {
+    const tick = () => {
+        void refreshAccessTokenIfNeeded().catch(() => { });
+    };
+    window.setInterval(tick, TOKEN_REFRESH_INTERVAL_MS);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            tick();
+        }
+    });
+    tick();
 }
 
 export async function fetchDataAutoRetry(url: string, para: object, method = 'POST', json = true): Promise<object> {

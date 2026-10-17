@@ -16,7 +16,7 @@ import DigestCard from './home/DigestCard.vue';
 import StatsCard from './home/StatsCard.vue';
 import TimelineReport from './home/TimelineReport.vue';
 import PropertyDistributionCard from './home/PropertyDistributionCard.vue';
-import { GetBlobImgSrc } from '../api/token';
+import { GetImageSrc } from '../api/token';
 import {
     generateTips as requestGenerateTips,
     getHomeDiscovery,
@@ -35,7 +35,7 @@ import {
 } from '@/api/componentRequests';
 
 interface DiscoveryVisual extends HomeDiscoveryPicture {
-    blobSrc: string;
+    thumbSrc: string;
 }
 
 const router = useRouter();
@@ -190,9 +190,9 @@ const openThemeSearch = () => {
     openSearchWindow(theme.label);
 };
 
-const fetchThumb = async (src: string, isCollection = false): Promise<string> => {
+const fetchThumb = (src: string, isCollection = false): string => {
     const suffix = isCollection ? `?${Date.now()}` : '';
-    return GetBlobImgSrc(`/imagebed/thumbnails/${src}${suffix}`);
+    return GetImageSrc(`/imagebed/thumbnails/${src}${suffix}`);
 };
 
 const dedupePictures = (pictures: Array<HomeDiscoveryPicture | null | undefined>): HomeDiscoveryPicture[] => {
@@ -205,21 +205,17 @@ const dedupePictures = (pictures: Array<HomeDiscoveryPicture | null | undefined>
     return [...picked.values()];
 };
 
-const hydrateDiscoveryVisuals = async (payload: HomeDiscoveryResponse) => {
-    heroVisuals.value = await Promise.all(
-        payload.modules.hero.pictures.map(async (item) => ({
-            ...item,
-            blobSrc: await fetchThumb(item.src, item.isCollection),
-        })),
-    );
+const hydrateDiscoveryVisuals = (payload: HomeDiscoveryResponse) => {
+    heroVisuals.value = payload.modules.hero.pictures.map((item) => ({
+        ...item,
+        thumbSrc: fetchThumb(item.src, item.isCollection),
+    }));
 
     const pictures = dedupePictures([payload.modules.remix.anchor, ...payload.modules.remix.pictures]).slice(0, 4);
-    remixVisuals.value = await Promise.all(
-        pictures.map(async (item) => ({
-            ...item,
-            blobSrc: await fetchThumb(item.src, item.isCollection),
-        })),
-    );
+    remixVisuals.value = pictures.map((item) => ({
+        ...item,
+        thumbSrc: fetchThumb(item.src, item.isCollection),
+    }));
 };
 
 const fetchKeywords = async () => {
@@ -233,7 +229,7 @@ const fetchDiscovery = async () => {
     try {
         const res = await getHomeDiscovery();
         discoveryData.value = res;
-        await hydrateDiscoveryVisuals(res);
+        hydrateDiscoveryVisuals(res);
     } catch (error) {
         console.error(error);
         discoveryData.value = null;
@@ -250,7 +246,7 @@ const fetchRandomImage = async () => {
     try {
         const keyword = selectedKeyword.value || undefined;
         const res = await getRandomImageInfo(keyword) as ImgInfo;
-        featuredImg.value = await fetchThumb(res.src);
+        featuredImg.value = fetchThumb(res.src);
         featuredImgTitle.value = res.title;
         featuredImgOriginalSrc.value = res.src;
     } catch (error) {

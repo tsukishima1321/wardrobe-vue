@@ -16,7 +16,7 @@ import {
     createCollection,
     searchImages
 } from '@/api/componentRequests';
-import { GetBlobImgSrc, ResponseWithError } from '@/api/token';
+import { GetImageSrc, ResponseWithError } from '@/api/token';
 import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElLoading, ElMessageBox, ElInput } from 'element-plus';
@@ -71,27 +71,14 @@ const loadUnprocessedImages = async () => {
         const list = await listUnprocessedImages();
         fileQueue.value = list.map((src, index) => ({
             uid: -index - 1,
-            previewUrl: '', // Will load asynchronously
+            previewUrl: GetImageSrc("/imagebed/" + src),
             src: src
         }));
 
         if (fileQueue.value.length === 0) {
             ElMessage.info('暂无待处理图片');
         } else {
-            // Load the first one immediately
             selectFile(0);
-        }
-
-        // Lazy load previews
-        for (const item of fileQueue.value) {
-            try {
-                if (item.src) {
-                    const blobUrl = await GetBlobImgSrc("/imagebed/" + item.src);
-                    item.previewUrl = blobUrl;
-                }
-            } catch (e) {
-                console.error(`Failed to load preview for ${item.src}`, e);
-            }
         }
     } catch (e) {
         console.error(e);
@@ -550,8 +537,7 @@ interface CopyAttrItem {
     title: string;
     date: string;
     is_collection?: boolean;
-    blobSrc: string;
-    loading: boolean;
+    thumbSrc: string;
 }
 
 const copyAttrVisible = ref(false);
@@ -589,16 +575,14 @@ const searchCopyAttr = async (reset: boolean) => {
         const data = await searchImages(buildCopyAttrParams(page));
         copyAttrTotalPage.value = data.totalPage;
         copyAttrPage.value = page;
-        const newItems = (data.hrefList || []).map(item => ({
+        const newItems: CopyAttrItem[] = (data.hrefList || []).map(item => ({
             src: item.src,
             title: item.title,
             date: item.date,
             is_collection: item.is_collection,
-            blobSrc: '',
-            loading: false,
+            thumbSrc: GetImageSrc(`/imagebed/thumbnails/small/${item.src}${item.is_collection ? `?${Date.now()}` : ''}`),
         }));
         copyAttrItems.value = reset ? newItems : [...copyAttrItems.value, ...newItems];
-        loadCopyAttrThumbs();
     } catch (e) {
         console.error(e);
         ElMessage.error('搜索失败');
@@ -623,21 +607,6 @@ const handleCopyAttrScroll = () => {
     if (!el) return;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
         loadMoreCopyAttr();
-    }
-};
-
-const loadCopyAttrThumbs = () => {
-    for (const item of copyAttrItems.value) {
-        if (item.blobSrc || item.loading) continue;
-        item.loading = true;
-        const url = item.is_collection
-            ? `/imagebed/thumbnails/small/${item.src}?${Date.now()}`
-            : `/imagebed/thumbnails/small/${item.src}`;
-        GetBlobImgSrc(url).then(blobSrc => {
-            item.blobSrc = blobSrc;
-        }).finally(() => {
-            item.loading = false;
-        });
     }
 };
 
@@ -966,9 +935,8 @@ const applyCopyAttr = async (item: CopyAttrItem) => {
                 <div v-else class="copy-attr-grid-inner">
                     <div v-for="item in copyAttrItems" :key="item.src" class="copy-attr-thumb"
                         :title="item.title" @click="applyCopyAttr(item)">
-                        <img v-if="item.blobSrc" :src="item.blobSrc" :alt="item.title"
-                            class="copy-attr-thumb-img" />
-                        <div v-else class="copy-attr-thumb-placeholder"></div>
+                        <img :src="item.thumbSrc" :alt="item.title" class="copy-attr-thumb-img"
+                            loading="lazy" />
                         <div class="copy-attr-thumb-overlay">
                             <el-icon>
                                 <CopyDocument />

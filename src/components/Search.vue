@@ -5,7 +5,7 @@ import Masonry from 'masonry-layout';
 import { debounce } from 'lodash';
 import { ElMessage, ElMessageBox, ElDrawer, ElProgress, ElIcon } from 'element-plus';
 import { Close } from '@element-plus/icons-vue';
-import { GetBlobImgSrc } from "@/api/token";
+import { GetImageSrc } from "@/api/token";
 import { deleteImage, deleteCollection, getSearchHints, searchImages, listCollectionImages, mergeCollection, createKeyword, createProperty } from "@/api/componentRequests";
 
 import SearchFilterPanel from './search/SearchFilterPanel.vue';
@@ -37,8 +37,8 @@ interface SearchResponse {
     hrefList: Array<{ src: string, title: string, date: string, is_collection?: boolean }>;
 }
 
-interface BlobImgItem {
-    blobSrc: string;
+interface ImageListItem {
+    thumbSrc: string;
     oriSrc: string;
     title: string;
     checked: boolean;
@@ -114,7 +114,7 @@ type PaginationExposed = {
 
 const paginationRef = ref<PaginationExposed | null>(null);
 
-const blobImgList = ref<BlobImgItem[]>([]);
+const imageList = ref<ImageListItem[]>([]);
 const totalPage = ref(1);
 const totalItems = ref(0);
 type DisplayMode = 'masonry' | 'table' | 'gallery'
@@ -134,8 +134,8 @@ const batchMetadataLoading = ref(false);
 const downloadProgress = ref({ visible: false, total: 0, completed: 0 });
 
 // Computed
-const hasSelection = computed(() => blobImgList.value.some(item => item.checked));
-const isAllSelected = computed(() => blobImgList.value.length > 0 && blobImgList.value.every(item => item.checked));
+const hasSelection = computed(() => imageList.value.some(item => item.checked));
+const isAllSelected = computed(() => imageList.value.length > 0 && imageList.value.every(item => item.checked));
 const pageSize = computed(() => displayMode.value === 'masonry' ? 20 : displayMode.value === 'table' ? 100 : 200);
 
 // Masonry
@@ -180,19 +180,20 @@ onUpdated(() => {
     }
 });
 
+const handleMasonryImageLoad = () => {
+    if (displayMode.value === 'masonry' && masonry) {
+        (masonry as any).layout();
+    }
+};
+
 const galleryImages = ref<GalleryImageItem[]>([])
 
-watch(blobImgList, (newList) => {
-  const keep = new Map<string, string>()
-  for (const img of galleryImages.value) {
-    if (img.blobSrc) keep.set(img.src, img.blobSrc)
-  }
+watch(imageList, (newList) => {
   galleryImages.value = newList.map(item => ({
     src: item.oriSrc,
     title: item.title,
     date: item.date,
     is_collection: item.isCollection,
-    blobSrc: keep.get(item.oriSrc) || item.blobSrc || '',
   }))
 }, { deep: true, immediate: true })
 
@@ -239,8 +240,8 @@ const updateSearch = debounce(async (resetpage: boolean = true) => {
         totalPage.value = data.totalPage;
         totalItems.value = data.total;
 
-        const newItems = data.hrefList.map(item => ({
-            blobSrc: '',
+        const newItems: ImageListItem[] = data.hrefList.map(item => ({
+            thumbSrc: GetImageSrc(`/imagebed/thumbnails/${item.src}${item.is_collection ? `?${Date.now()}` : ''}`),
             oriSrc: item.src,
             title: item.title,
             checked: false,
@@ -249,25 +250,12 @@ const updateSearch = debounce(async (resetpage: boolean = true) => {
         }));
 
         if (displayMode.value === 'gallery' && !resetpage) {
-            blobImgList.value.push(...newItems);
+            imageList.value.push(...newItems);
         } else {
-            blobImgList.value = newItems;
+            imageList.value = newItems;
             if(galleryGrid?.value) {
                 galleryGrid.value.zoomLevel = 3;
             }
-        }
-
-        if (displayMode.value === 'masonry') {
-            data.hrefList.forEach(item => {
-                GetBlobImgSrc("/imagebed/thumbnails/" + item.src + (item.is_collection ? `?${Date.now()}` : '')).then((blobSrc) => {
-                    const imgItem = blobImgList.value.find(img => img.oriSrc === item.src);
-                    if (imgItem) {
-                        imgItem.blobSrc = blobSrc;
-                    }
-                }).catch(() => {
-                    // Handle error
-                });
-            });
         }
     } catch (error) {
         console.error(error);
@@ -287,7 +275,7 @@ function galleryItemClick(src: string) {
 }
 
 const handleDelete = async () => {
-    const selectedItems = blobImgList.value.filter(item => item.checked);
+    const selectedItems = imageList.value.filter(item => item.checked);
     if (selectedItems.length === 0) {
         ElMessage.warning('选择列表为空');
         return;
@@ -315,7 +303,7 @@ const handleDelete = async () => {
 };
 
 const handleDownload = async () => {
-    const selectedItems = blobImgList.value.filter(item => item.checked);
+    const selectedItems = imageList.value.filter(item => item.checked);
     if (selectedItems.length === 0) {
         ElMessage.warning('选择列表为空');
         return;
@@ -357,7 +345,7 @@ const handleDownload = async () => {
     for (const href of downloadHrefs) {
         try {
             const link = document.createElement('a');
-            link.href = await GetBlobImgSrc('/imagebed/' + href);
+            link.href = GetImageSrc('/imagebed/' + href);
             link.download = href;
             link.click();
         } finally {
@@ -371,7 +359,7 @@ const handleDownload = async () => {
 };
 
 const handleMergeCollection = async () => {
-    const selectedItems = blobImgList.value.filter(item => item.checked);
+    const selectedItems = imageList.value.filter(item => item.checked);
     if (selectedItems.length < 2) {
         ElMessage.warning('请至少选择 2 张图片');
         return;
@@ -409,7 +397,7 @@ const handleMergeCollection = async () => {
 };
 
 const handleBatchMetadata = async () => {
-    const selectedItems = blobImgList.value.filter(item => item.checked);
+    const selectedItems = imageList.value.filter(item => item.checked);
     if (selectedItems.length === 0) {
         ElMessage.warning('选择列表为空');
         return;
@@ -460,11 +448,11 @@ const handleBatchMetadata = async () => {
 };
 
 const selectAll = () => {
-    blobImgList.value.forEach(item => item.checked = true);
+    imageList.value.forEach(item => item.checked = true);
 };
 
 const selectNone = () => {
-    blobImgList.value.forEach(item => item.checked = false);
+    imageList.value.forEach(item => item.checked = false);
 };
 
 const toggleSelection = () => {
@@ -486,16 +474,16 @@ const imgClicked = (src: string) => {
 };
 
 const imgSelected = (src: string) => {
-    const item = blobImgList.value.find(item => item.oriSrc == src);
+    const item = imageList.value.find(item => item.oriSrc == src);
     if (item) item.checked = true;
 };
 
 const imgUnSelected = (src: string) => {
-    const item = blobImgList.value.find(item => item.oriSrc == src);
+    const item = imageList.value.find(item => item.oriSrc == src);
     if (item) item.checked = false;
 };
 
-const handleRowDoubleClick = (row: BlobImgItem) => {
+const handleRowDoubleClick = (row: ImageListItem) => {
     imgClicked(row.oriSrc);
 };
 
@@ -549,8 +537,8 @@ onMounted(() => {
 
             <div class="results-area" v-loading="isLoading">
                 <div v-if="displayMode === 'masonry'" class="masonry-container-wrapper">
-                    <div ref="masonryContainer" class="masonry">
-                        <MasonryItemFigure v-for="blobImg in blobImgList" :key="blobImg.oriSrc" :src="blobImg.blobSrc"
+                    <div ref="masonryContainer" class="masonry" @load.capture="handleMasonryImageLoad">
+                        <MasonryItemFigure v-for="blobImg in imageList" :key="blobImg.oriSrc" :src="blobImg.thumbSrc"
                             :oriSrc="blobImg.oriSrc" :figcaption="blobImg.title" :checked="blobImg.checked"
                             :isCollection="blobImg.isCollection" @clicked="imgClicked" @selected="imgSelected"
                             @unselected="imgUnSelected" />
@@ -558,10 +546,10 @@ onMounted(() => {
                 </div>
 
                 <div v-else-if="displayMode === 'table'" class="table-container">
-                    <el-table :data="blobImgList" stripe style="width: 100%" @selection-change="(selection: BlobImgItem[]) => {
-                        blobImgList.forEach(item => item.checked = false);
+                    <el-table :data="imageList" stripe style="width: 100%" @selection-change="(selection: ImageListItem[]) => {
+                        imageList.forEach(item => item.checked = false);
                         selection.forEach(sel => {
-                            const item = blobImgList.find(i => i.oriSrc === sel.oriSrc);
+                            const item = imageList.find(i => i.oriSrc === sel.oriSrc);
                             if (item) item.checked = true;
                         });
                     }" @row-dblclick="handleRowDoubleClick">
