@@ -230,15 +230,6 @@ onMounted(async () => {
                 </section>
 
                 <section class="filter-section">
-                    <h3>归档</h3>
-                    <button v-for="item in archive" :key="item.label" type="button" class="archive-row"
-                        @click="selectArchive(item)">
-                        <span>{{ item.label }}</span>
-                        <span>{{ item.count }}</span>
-                    </button>
-                </section>
-
-                <section class="filter-section">
                     <h3>筛选</h3>
                     <el-select v-model="kind" clearable placeholder="全部类型" style="width: 100%; margin-bottom: 8px"
                         @change="search">
@@ -256,6 +247,16 @@ onMounted(async () => {
                         value-format="YYYY-MM-DD" style="width: 100%; margin-bottom: 8px" @change="search" />
                     <el-button v-if="activeFilterCount" link type="primary" @click="resetFilters">清除筛选</el-button>
                 </section>
+
+                <section class="filter-section">
+                    <h3>归档</h3>
+                    <button v-for="item in archive" :key="item.label" type="button" class="archive-row"
+                        @click="selectArchive(item)">
+                        <span>{{ item.label }}</span>
+                        <span>{{ item.count }}</span>
+                    </button>
+                </section>
+
             </aside>
 
             <main v-loading="loading" class="feed-main">

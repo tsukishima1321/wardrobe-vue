@@ -350,7 +350,7 @@ onBeforeUnmount(() => {
                 </span>
                 <el-button :icon="View" @click="previewVisible = true">预览</el-button>
                 <el-button @click="saveDraft" :loading="saving">保存</el-button>
-                <el-button v-if="postId" :type="status === 'published' ? 'warning' : 'success'" plain
+                <el-button v-if="status === 'published'" :type="'warning'" plain
                     @click="togglePublish">
                     {{ status === 'published' ? '转为草稿' : '发布' }}
                 </el-button>

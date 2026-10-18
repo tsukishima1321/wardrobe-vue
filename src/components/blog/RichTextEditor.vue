@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, watch } from 'vue';
-import { EditorContent, useEditor } from '@tiptap/vue-3';
+import { EditorContent, useEditor, VueNodeViewRenderer } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -9,6 +9,7 @@ import Highlight from '@tiptap/extension-highlight';
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ElMessageBox } from 'element-plus';
 import { Link, Picture, RefreshLeft, RefreshRight } from '@element-plus/icons-vue';
+import BlogImageView from './BlogImageView.vue';
 
 type RichDoc = Record<string, unknown>;
 
@@ -46,7 +47,29 @@ const BlogImage = Image.extend({
                 parseHTML: (element: HTMLElement) => element.getAttribute('data-caption') || '',
                 renderHTML: (attributes: Record<string, unknown>) => attributes.caption ? { 'data-caption': attributes.caption } : {},
             },
+            width: {
+                default: null,
+                parseHTML: (element: HTMLElement) => {
+                    const styleWidth = element.style?.width || '';
+                    const percentage = styleWidth.match(/^(\d+(?:\.\d+)?)%$/);
+                    if (percentage) {
+                        return Math.min(100, Math.max(10, Math.round(Number(percentage[1]))));
+                    }
+                    const attribute = Number(element.getAttribute('width'));
+                    return Number.isFinite(attribute) && attribute > 0
+                        ? Math.min(100, Math.max(10, Math.round(attribute)))
+                        : null;
+                },
+                renderHTML: (attributes: Record<string, unknown>) => {
+                    const width = Number(attributes.width);
+                    if (!Number.isFinite(width) || width <= 0) return {};
+                    return { style: `width:${Math.min(100, Math.max(10, Math.round(width)))}%` };
+                },
+            },
         };
+    },
+    addNodeView() {
+        return VueNodeViewRenderer(BlogImageView);
     },
     renderHTML({ HTMLAttributes }: { HTMLAttributes: Record<string, any> }) {
         const href = HTMLAttributes['data-image-href'] || HTMLAttributes.href;
