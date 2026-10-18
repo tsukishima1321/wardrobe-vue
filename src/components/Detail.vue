@@ -35,7 +35,6 @@ const imageSrc = computed(() => {
 });
 const enableEdit = ref(false);
 const enableEditText = ref(false);
-const imgLoading = ref(true);
 
 // Collection state
 const isCollection = ref(false);
@@ -111,7 +110,6 @@ const collectionThumbUrl = (item: CollectionItem) =>
     GetImageSrc(`/imagebed/thumbnails/${item.image_href}?v=${collectionVersion.value}`);
 
 const loadImg = async () => {
-    imgLoading.value = true;
     try {
         const r = await getImageDetail(imgSrc.value as string) as imgData;
         imgTitle.value = r.title;
@@ -126,8 +124,6 @@ const loadImg = async () => {
     } catch {
         router.push('/login');
     }
-
-    imgLoading.value = false;
 
     if (isCollection.value) {
         await loadCollectionImages();
@@ -594,13 +590,7 @@ watch(showViewOriginalBtn, (show) => {
             <template v-if="!isCollection">
                 <div class="image-stage">
                     <div class="image-content" :style="{ width: `${zoomLevel * 100}%` }">
-                        <el-skeleton v-if="imgLoading" animated>
-                            <template #template>
-                                <el-skeleton-item variant="image"
-                                    style="width: 100%; height: 80vh; border-radius: 8px;" />
-                            </template>
-                        </el-skeleton>
-                        <el-image v-show="!imgLoading" :src="imageSrc" :preview-src-list="[imageSrc]"
+                        <el-image :src="imageSrc" :preview-src-list="[imageSrc]"
                             class="main-image">
                             <template #error>
                                 <div class="image-error">
@@ -609,6 +599,14 @@ watch(showViewOriginalBtn, (show) => {
                                     </el-icon>
                                     <span>无法加载图片</span>
                                 </div>
+                            </template>
+                            <template #placeholder>
+                                <el-skeleton animated>
+                                    <template #template>
+                                        <el-skeleton-item variant="image"
+                                            style="width: 100%; height: 80vh; border-radius: 8px;" />
+                                    </template>
+                                </el-skeleton>
                             </template>
                         </el-image>
                     </div>
@@ -648,6 +646,14 @@ watch(showViewOriginalBtn, (show) => {
                             <div class="collection-img-wrapper">
                                 <el-image :src="collectionThumbUrl(item)" fit="cover" class="collection-thumb"
                                     @click="openCollectionPreview(index)">
+                                    <template #loading>
+                                        <el-skeleton animated>
+                                            <template #template>
+                                                <el-skeleton-item variant="image"
+                                                    style="width: 100%; height: 80vh; border-radius: 8px;" />
+                                            </template>
+                                        </el-skeleton>
+                                    </template>
                                     <template #error>
                                         <div class="image-error">
                                             <el-icon>
