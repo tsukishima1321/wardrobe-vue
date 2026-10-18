@@ -108,6 +108,16 @@ interface BlogPostEnvelope {
     warnings?: string[];
 }
 
+export interface BlogImageResult {
+    src: string;
+    title: string;
+    date: string;
+    isCollection: boolean;
+    itemCount?: number;
+    collectionHref?: string;
+    collectionTitle?: string;
+}
+
 const buildQuery = (params: Record<string, string | number | undefined | null>): string => {
     const search = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {

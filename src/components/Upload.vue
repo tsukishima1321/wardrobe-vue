@@ -13,8 +13,7 @@ import {
     executeOcrMission,
     newOcrMission,
     predictImage,
-    createCollection,
-    searchImages
+    createCollection
 } from '@/api/componentRequests';
 import { GetImageSrc, ResponseWithError } from '@/api/token';
 import { ref, computed, watch } from 'vue';
@@ -22,7 +21,8 @@ import { useRouter } from 'vue-router';
 import { ElMessage, ElLoading, ElMessageBox, ElInput } from 'element-plus';
 import type { UploadFile } from 'element-plus';
 import { debounce } from 'lodash';
-import { Plus, Delete, UploadFilled, Picture, ZoomIn, ZoomOut, Refresh, Connection, List, Collection, CopyDocument, Search } from '@element-plus/icons-vue';
+import { Plus, Delete, UploadFilled, Picture, ZoomIn, ZoomOut, Refresh, Connection, List, Collection, CopyDocument } from '@element-plus/icons-vue';
+import CopyAttributesDialog from '@/components/upload/CopyAttributesDialog.vue';
 
 const router = useRouter();
 
@@ -532,122 +532,29 @@ const focusPropertyValueInput = () => {
 };
 
 // Copy Attributes
-interface CopyAttrItem {
-    src: string;
-    title: string;
-    date: string;
-    is_collection?: boolean;
-    thumbSrc: string;
-}
-
 const copyAttrVisible = ref(false);
-const copyAttrSearch = ref('');
-const copyAttrItems = ref<CopyAttrItem[]>([]);
-const copyAttrPage = ref(0);
-const copyAttrTotalPage = ref(0);
-const copyAttrLoading = ref(false);
-const copyAttrLoadingMore = ref(false);
-const copyAttrScrollRef = ref<HTMLElement>();
-
-const buildCopyAttrParams = (page: number) => ({
-    searchKey: copyAttrSearch.value.trim(),
-    page,
-    dateFrom: '',
-    dateTo: '',
-    byName: true,
-    byFullText: true,
-    orderBy: 'date',
-    order: 'desc',
-    pageSize: 48,
-    keywords: [],
-    properties: [],
-    excludedKeywords: [],
-    excludedProperties: [],
-});
-
-const searchCopyAttr = async (reset: boolean) => {
-    const page = reset ? 1 : copyAttrPage.value + 1;
-    if (!reset && copyAttrTotalPage.value > 0 && page > copyAttrTotalPage.value) return;
-
-    if (reset) copyAttrLoading.value = true;
-    else copyAttrLoadingMore.value = true;
-    try {
-        const data = await searchImages(buildCopyAttrParams(page));
-        copyAttrTotalPage.value = data.totalPage;
-        copyAttrPage.value = page;
-        const newItems: CopyAttrItem[] = (data.hrefList || []).map(item => ({
-            src: item.src,
-            title: item.title,
-            date: item.date,
-            is_collection: item.is_collection,
-            thumbSrc: GetImageSrc(`/imagebed/thumbnails/small/${item.src}${item.is_collection ? `?${Date.now()}` : ''}`),
-        }));
-        copyAttrItems.value = reset ? newItems : [...copyAttrItems.value, ...newItems];
-    } catch (e) {
-        console.error(e);
-        ElMessage.error('搜索失败');
-    } finally {
-        copyAttrLoading.value = false;
-        copyAttrLoadingMore.value = false;
-    }
-};
-
-const onCopyAttrSearch = debounce(() => {
-    searchCopyAttr(true);
-}, 300);
-
-const loadMoreCopyAttr = () => {
-    if (copyAttrLoadingMore.value) return;
-    if (copyAttrTotalPage.value > 0 && copyAttrPage.value >= copyAttrTotalPage.value) return;
-    searchCopyAttr(false);
-};
-
-const handleCopyAttrScroll = () => {
-    const el = copyAttrScrollRef.value;
-    if (!el) return;
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
-        loadMoreCopyAttr();
-    }
-};
 
 const openCopyAttr = () => {
     copyAttrVisible.value = true;
-    if (copyAttrItems.value.length === 0) {
-        searchCopyAttr(true);
-    }
 };
 
-const applyCopyAttr = async (item: CopyAttrItem) => {
-    try {
-        const data = await getImageDetail(item.src);
-        let addedK = 0;
-        let addedP = 0;
-
-        if (data.keywords) {
-            for (const k of data.keywords) {
-                if (!keywords.value.includes(k)) {
-                    keywords.value.push(k);
-                    addedK++;
-                }
-            }
+const applyCopyAttributes = (payload: { keywords: string[]; properties: Array<{ name: string; value: string }> }) => {
+    let addedK = 0;
+    let addedP = 0;
+    for (const keyword of payload.keywords) {
+        if (!keywords.value.includes(keyword)) {
+            keywords.value.push(keyword);
+            addedK += 1;
         }
-
-        if (data.properties) {
-            for (const p of data.properties) {
-                const exists = properties.value.some(c => c.name === p.name && c.value === p.value);
-                if (!exists) {
-                    properties.value.push({ name: p.name, value: p.value });
-                    addedP++;
-                }
-            }
-        }
-
-        ElMessage.success(`已复制属性: ${addedK} 个关键词, ${addedP} 个属性`);
-        copyAttrVisible.value = false;
-    } catch (e) {
-        console.error(e);
-        ElMessage.error('获取图片属性失败');
     }
+    for (const property of payload.properties) {
+        const exists = properties.value.some((item) => item.name === property.name && item.value === property.value);
+        if (!exists) {
+            properties.value.push({ name: property.name, value: property.value });
+            addedP += 1;
+        }
+    }
+    ElMessage.success(`已复制属性: ${addedK} 个关键词, ${addedP} 个属性`);
 };
 
 </script>
@@ -918,37 +825,7 @@ const applyCopyAttr = async (item: CopyAttrItem) => {
             </div>
         </div>
 
-        <!-- Copy Attributes Dialog -->
-        <el-dialog v-model="copyAttrVisible" title="复制属性" width="560px" class="copy-attr-dialog"
-            append-to-body :close-on-click-modal="false">
-            <div class="copy-attr-search">
-                <el-input v-model="copyAttrSearch" placeholder="搜索标题或内容" clearable :prefix-icon="Search"
-                    @input="onCopyAttrSearch" />
-            </div>
-            <div ref="copyAttrScrollRef" class="copy-attr-grid" @scroll="handleCopyAttrScroll">
-                <div v-if="copyAttrLoading && copyAttrItems.length === 0" class="copy-attr-empty">
-                    <el-skeleton :rows="6" animated />
-                </div>
-                <div v-else-if="copyAttrItems.length === 0" class="copy-attr-empty">
-                    <el-empty description="暂无结果" />
-                </div>
-                <div v-else class="copy-attr-grid-inner">
-                    <div v-for="item in copyAttrItems" :key="item.src" class="copy-attr-thumb"
-                        :title="item.title" @click="applyCopyAttr(item)">
-                        <img :src="item.thumbSrc" :alt="item.title" class="copy-attr-thumb-img"
-                            loading="lazy" />
-                        <div class="copy-attr-thumb-overlay">
-                            <el-icon>
-                                <CopyDocument />
-                            </el-icon>
-                        </div>
-                    </div>
-                </div>
-                <div v-if="copyAttrLoadingMore" class="copy-attr-loading-more">加载中...</div>
-                <div v-else-if="copyAttrItems.length > 0 && copyAttrTotalPage > 0 && copyAttrPage >= copyAttrTotalPage"
-                    class="copy-attr-loading-more">已显示全部结果</div>
-            </div>
-        </el-dialog>
+        <CopyAttributesDialog v-model="copyAttrVisible" @apply="applyCopyAttributes" />
     </div>
 </template>
 
@@ -1279,84 +1156,4 @@ const applyCopyAttr = async (item: CopyAttrItem) => {
     }
 }
 
-/* Copy Attributes Dialog */
-.copy-attr-search {
-    margin-bottom: 12px;
-}
-
-.copy-attr-grid {
-    max-height: 420px;
-    overflow-y: auto;
-    margin: 0 -6px;
-    padding: 0 6px;
-}
-
-.copy-attr-grid-inner {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-}
-
-.copy-attr-thumb {
-    aspect-ratio: 1;
-    border-radius: 6px;
-    overflow: hidden;
-    cursor: pointer;
-    position: relative;
-    background: #f5f5f7;
-}
-
-.copy-attr-thumb-img {
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-
-.copy-attr-thumb-placeholder {
-    width: 100%;
-    height: 100%;
-    background: #f5f5f7;
-}
-
-.copy-attr-thumb-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-size: 20px;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.copy-attr-thumb:hover .copy-attr-thumb-overlay {
-    opacity: 1;
-}
-
-.copy-attr-empty {
-    padding: 24px 0;
-}
-
-.copy-attr-loading-more {
-    text-align: center;
-    padding: 12px;
-    color: #909399;
-    font-size: 13px;
-}
-
-@media (max-width: 768px) {
-    .copy-attr-dialog {
-        width: 92%;
-        max-width: 92%;
-    }
-
-    .copy-attr-grid-inner {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
 </style>

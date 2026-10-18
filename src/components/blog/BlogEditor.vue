@@ -14,9 +14,8 @@ import {
     blogImageUrl,
     localDateString,
 } from '@/api/blog';
-import type { BlogKind, BlogPostDetail, BlogTag } from '@/api/blog';
+import type { BlogKind, BlogPostDetail, BlogTag, BlogImageResult } from '@/api/blog';
 import { getMockPost, mockTags } from '@/mocks/blog';
-import type { MockImageResult } from '@/mocks/blog';
 import { AuthenticationError } from '@/api/token';
 
 const route = useRoute();
@@ -296,7 +295,7 @@ const openImagePicker = (mode: 'insert' | 'reference') => {
     imagePickerVisible.value = true;
 };
 
-const onImagesSelected = (images: MockImageResult[], mode: 'insert' | 'reference') => {
+const onImagesSelected = (images: BlogImageResult[], mode: 'insert' | 'reference') => {
     if (mode === 'reference') {
         const image = images[0];
         if (image) editorRef.value?.insertImageRef(image.src, image.title || '引用图片');
@@ -305,7 +304,7 @@ const onImagesSelected = (images: MockImageResult[], mode: 'insert' | 'reference
     images.forEach((image) => editorRef.value?.insertImage(image.src, image.title || '', ''));
 };
 
-const onCoverSelected = (images: MockImageResult[]) => {
+const onCoverSelected = (images: BlogImageResult[]) => {
     const image = images[0];
     if (image) coverImageHref.value = image.src;
 };
@@ -350,7 +349,7 @@ onBeforeUnmount(() => {
                 </span>
                 <el-button :icon="View" @click="previewVisible = true">预览</el-button>
                 <el-button @click="saveDraft" :loading="saving">保存</el-button>
-                <el-button v-if="status === 'published'" :type="'warning'" plain
+                <el-button v-if="postId" :type="status === 'published' ? 'warning' : 'success'" plain
                     @click="togglePublish">
                     {{ status === 'published' ? '转为草稿' : '发布' }}
                 </el-button>
@@ -363,8 +362,7 @@ onBeforeUnmount(() => {
         <div v-loading="loading" class="editor-shell">
             <template v-if="!loading">
                 <div class="editor-main">
-                    <el-input v-model="title"
-                        :placeholder="kind === 'article' ? '文章标题' : '标题（可留空，默认为日期）'"
+                    <el-input v-model="title" :placeholder="kind === 'article' ? '文章标题' : '标题（可留空，默认为日期）'"
                         class="title-input" maxlength="200" show-word-limit />
 
                     <div class="editor-meta">
@@ -374,19 +372,17 @@ onBeforeUnmount(() => {
                             <el-option label="长文" value="article" />
                             <el-option label="随手记" value="note" />
                         </el-select>
-                        <el-select v-model="tags" multiple filterable allow-create default-first-option
-                            placeholder="标签" class="tag-select">
+                        <el-select v-model="tags" multiple filterable allow-create default-first-option placeholder="标签"
+                            class="tag-select">
                             <el-option v-for="tag in availableTags" :key="tag.id" :label="tag.name" :value="tag.name" />
                         </el-select>
                         <el-checkbox v-model="isPinned">置顶</el-checkbox>
                     </div>
 
-                    <RichTextEditor ref="editorRef" :model-value="contentJson" min-height="440px"
-                        placeholder="开始写正文……"
+                    <RichTextEditor ref="editorRef" :model-value="contentJson" min-height="440px" placeholder="开始写正文……"
                         @update:model-value="(value) => updateContent({ json: value })"
                         @update:html="(html) => updateContent({ html })"
-                        @update:text="(text) => updateContent({ text })"
-                        @open-image-picker="openImagePicker" />
+                        @update:text="(text) => updateContent({ text })" @open-image-picker="openImagePicker" />
                 </div>
 
                 <aside class="editor-side">
@@ -421,8 +417,8 @@ onBeforeUnmount(() => {
             </template>
         </div>
 
-        <ImagePickerDialog v-model="imagePickerVisible" :mode="imagePickerMode" :date="date" :tags="tags"
-            :mock="isMock" @select="onImagesSelected" />
+        <ImagePickerDialog v-model="imagePickerVisible" :mode="imagePickerMode" :date="date" :tags="tags" :mock="isMock"
+            @select="onImagesSelected" />
         <ImagePickerDialog v-model="coverPickerVisible" mode="insert" :date="date" :tags="tags" :mock="isMock"
             @select="onCoverSelected" />
 

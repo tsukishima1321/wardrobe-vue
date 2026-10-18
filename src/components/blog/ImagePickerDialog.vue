@@ -4,11 +4,12 @@ import { ElMessage } from 'element-plus';
 import type { UploadFile } from 'element-plus';
 import { Search, Upload as UploadIcon, Check, ArrowLeft } from '@element-plus/icons-vue';
 import { GetImageSrc, ResponseWithError } from '@/api/token';
-import { listCollectionImages, searchCollections, searchImages, uploadImage } from '@/api/componentRequests';
+import { executeOcrMission, listCollectionImages, searchCollections, searchImages, uploadImage } from '@/api/componentRequests';
 import type { SearchRequest } from '@/api/componentRequests';
 import { mockCollectionItems, mockCollections, mockImages } from '@/mocks/blog';
-import { localDateString } from '@/api/blog';
-import type { MockImageResult } from '@/mocks/blog';
+import ImageMetadataEditor from '@/components/upload/ImageMetadataEditor.vue';
+import type { ImageMetadataValue } from '@/components/upload/types';
+import { localDateString, type BlogImageResult } from '@/api/blog';
 
 const props = withDefaults(defineProps<{
     modelValue: boolean;
@@ -25,7 +26,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
     (e: 'update:modelValue', value: boolean): void;
-    (e: 'select', images: MockImageResult[], mode: 'insert' | 'reference'): void;
+    (e: 'select', images: BlogImageResult[], mode: 'insert' | 'reference'): void;
 }>();
 
 const visible = computed({
@@ -39,16 +40,17 @@ const loading = ref(false);
 const page = ref(1);
 const pageSize = 24;
 const totalPage = ref(0);
-const results = ref<MockImageResult[]>([]);
-const selected = ref<MockImageResult[]>([]);
-const files = ref<UploadFile[]>([]);
-const uploading = ref(false);
-const uploadProgress = ref(0);
-const collections = ref<MockImageResult[]>([]);
+const results = ref<BlogImageResult[]>([]);
+const selected = ref<BlogImageResult[]>([]);
+const uploadFile = ref<File | null>(null);
+const uploadPreview = ref('');
+const uploadMetadata = ref<ImageMetadataValue>(emptyMetadata());
+const uploadingInsert = ref(false);
+const collections = ref<BlogImageResult[]>([]);
 const collectionsLoading = ref(false);
 const collectionQuery = ref('');
-const selectedCollection = ref<MockImageResult | null>(null);
-const collectionItems = ref<MockImageResult[]>([]);
+const selectedCollection = ref<BlogImageResult | null>(null);
+const collectionItems = ref<BlogImageResult[]>([]);
 const collectionItemsLoading = ref(false);
 
 let requestSeq = 0;
@@ -56,6 +58,16 @@ let collectionRequestSeq = 0;
 let itemRequestSeq = 0;
 
 const selectedSet = computed(() => new Set(selected.value.map((item) => item.src)));
+
+function emptyMetadata(): ImageMetadataValue {
+    return {
+        title: '',
+        date: props.date || localDateString(),
+        keywords: [],
+        properties: [],
+        isOCR: false,
+    };
+}
 
 const thumbUrl = (src: string): string => {
     if (props.mock || src.startsWith('mock-')) {
@@ -150,7 +162,7 @@ const loadCollections = async () => {
     }
 };
 
-const openCollection = async (collection: MockImageResult) => {
+const openCollection = async (collection: BlogImageResult) => {
     selectedCollection.value = collection;
     collectionItems.value = [];
     if (props.mock) {
@@ -196,8 +208,9 @@ const reset = () => {
     collectionRequestSeq += 1;
     itemRequestSeq += 1;
     selected.value = [];
-    files.value = [];
-    uploadProgress.value = 0;
+    uploadFile.value = null;
+    uploadPreview.value = '';
+    uploadMetadata.value = emptyMetadata();
     page.value = 1;
     query.value = '';
     activeTab.value = 'library';
@@ -230,7 +243,7 @@ const changePage = (next: number) => {
     void load();
 };
 
-const toggle = (image: MockImageResult) => {
+const toggle = (image: BlogImageResult) => {
     if (props.mode === 'reference') {
         selected.value = selectedSet.value.has(image.src) ? [] : [image];
         return;
@@ -243,67 +256,100 @@ const toggle = (image: MockImageResult) => {
     }
 };
 
-const onFileChange = (file: UploadFile, fileList: UploadFile[]) => {
-    files.value = fileList;
+const onSingleFileChange = (file: UploadFile) => {
+    const raw = file.raw;
+    if (!raw) return;
+    const oldName = uploadFile.value?.name || '';
+    const oldAutoTitle = oldName.substring(0, oldName.lastIndexOf('.')) || oldName;
+    const wasAutoTitle = !uploadMetadata.value.title.trim() || uploadMetadata.value.title === oldAutoTitle;
+
+    uploadFile.value = raw;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        uploadPreview.value = event.target?.result as string;
+    };
+    reader.readAsDataURL(raw);
+    if (wasAutoTitle) {
+        const name = raw.name;
+        uploadMetadata.value = {
+            ...uploadMetadata.value,
+            title: name.substring(0, name.lastIndexOf('.')) || name,
+        };
+    }
 };
 
-const uploadSelectedFiles = async () => {
-    if (!files.value.length) {
-        ElMessage.warning('请先选择图片');
+const clearUploadFile = () => {
+    uploadFile.value = null;
+    uploadPreview.value = '';
+    uploadMetadata.value = emptyMetadata();
+};
+
+const uploadAndInsert = async () => {
+    if (!uploadFile.value) {
+        ElMessage.warning('请先选择一张图片');
         return;
     }
-    uploading.value = true;
-    uploadProgress.value = 0;
-    const uploaded: MockImageResult[] = [];
-    const total = files.value.length;
+    if (!uploadMetadata.value.title.trim()) {
+        ElMessage.warning('请填写图片标题');
+        return;
+    }
+
+    if (props.mock) {
+        const image: BlogImageResult = {
+            src: `mock-upload-${Date.now()}.jpg`,
+            title: uploadMetadata.value.title.trim(),
+            date: uploadMetadata.value.date || localDateString(),
+            isCollection: false,
+        };
+        emit('select', [image], props.mode);
+        visible.value = false;
+        return;
+    }
+
+    uploadingInsert.value = true;
     try {
-        for (const file of files.value) {
-            const raw = file.raw;
-            if (!raw) continue;
-            const form = new FormData();
-            form.append('image', raw);
-            form.append('title', raw.name.replace(/\.[^.]+$/, ''));
-            form.append('date', props.date || localDateString());
-            form.append('doOCR', 'false');
-            form.append('unprocessed', 'false');
-            if (props.tags.length) {
-                form.append('keywords', JSON.stringify(props.tags));
+        const form = new FormData();
+        form.append('image', uploadFile.value);
+        form.append('title', uploadMetadata.value.title.trim());
+        form.append('date', uploadMetadata.value.date || localDateString());
+        form.append('doOCR', uploadMetadata.value.isOCR ? 'true' : 'false');
+        form.append('keywords', JSON.stringify(uploadMetadata.value.keywords));
+        form.append('properties', JSON.stringify(uploadMetadata.value.properties));
+
+        let md5 = '';
+        try {
+            const response = await uploadImage(form);
+            md5 = response.md5;
+        } catch (error) {
+            if (error instanceof ResponseWithError && error.data?.md5) {
+                md5 = error.data.md5;
+                ElMessage.info('图片已存在，直接引用已有图片');
+            } else {
+                throw error;
             }
-            try {
-                const response = await uploadImage(form);
-                uploaded.push({
-                    src: response.md5,
-                    title: raw.name,
-                    date: props.date || localDateString(),
-                    isCollection: false,
-                });
-            } catch (error) {
-                if (error instanceof ResponseWithError && error.data?.md5) {
-                    uploaded.push({
-                        src: error.data.md5,
-                        title: raw.name,
-                        date: props.date || localDateString(),
-                        isCollection: false,
-                    });
-                    ElMessage.info(`图片已存在，直接引用：${raw.name}`);
-                } else {
-                    throw error;
-                }
-            }
-            uploadProgress.value += 1;
         }
-        selected.value = uploaded.slice(0, props.mode === 'reference' ? 1 : uploaded.length);
-        ElMessage.success(`已上传 ${uploaded.length} 张图片`);
-        files.value = [];
-        activeTab.value = 'library';
-        page.value = 1;
-        await load();
+
+        if (!md5) throw new Error('上传未返回图片地址');
+
+        if (uploadMetadata.value.isOCR) {
+            void executeOcrMission(md5).catch((error) => {
+                console.error('execute OCR after blog image upload failed', error);
+            });
+        }
+
+        const image: BlogImageResult = {
+            src: md5,
+            title: uploadMetadata.value.title.trim(),
+            date: uploadMetadata.value.date || localDateString(),
+            isCollection: false,
+        };
+        emit('select', [image], props.mode);
+        visible.value = false;
     } catch (error) {
-        console.error('upload images failed', error);
+        console.error('upload image for article failed', error);
         ElMessage.error('上传图片失败');
     } finally {
-        uploading.value = false;
-        uploadProgress.value = Math.min(uploadProgress.value, total);
+        uploadingInsert.value = false;
     }
 };
 
@@ -318,15 +364,16 @@ const confirm = () => {
 </script>
 
 <template>
-    <el-dialog v-model="visible" :title="mode === 'reference' ? '引用图片系统中的图片' : '插入图片'"
-        width="min(94vw, 920px)" top="5vh" append-to-body destroy-on-close>
+    <el-dialog v-model="visible" :title="mode === 'reference' ? '引用图片系统中的图片' : '插入图片'" width="min(94vw, 920px)"
+        top="5vh" append-to-body destroy-on-close>
         <el-tabs v-model="activeTab">
             <el-tab-pane label="从图库选择" name="library">
                 <div class="picker-search">
-                    <el-input v-model="query" placeholder="搜索标题、OCR、关键词、属性……" clearable
-                        @keyup.enter="search">
+                    <el-input v-model="query" placeholder="搜索标题、OCR、关键词、属性……" clearable @keyup.enter="search">
                         <template #prefix>
-                            <el-icon><Search /></el-icon>
+                            <el-icon>
+                                <Search />
+                            </el-icon>
                         </template>
                     </el-input>
                     <el-button type="primary" @click="search">搜索</el-button>
@@ -338,7 +385,9 @@ const confirm = () => {
                         <img :src="thumbUrl(image.src)" :alt="image.title" loading="lazy" />
                         <span v-if="image.isCollection" class="collection-badge">合集</span>
                         <span v-if="selectedSet.has(image.src)" class="selected-check">
-                            <el-icon><Check /></el-icon>
+                            <el-icon>
+                                <Check />
+                            </el-icon>
                         </span>
                         <span class="image-meta">
                             <strong>{{ image.title || image.src }}</strong>
@@ -369,7 +418,9 @@ const confirm = () => {
                             :class="{ selected: selectedSet.has(image.src) }" @click="toggle(image)">
                             <img :src="thumbUrl(image.src)" :alt="image.title" loading="lazy" />
                             <span v-if="selectedSet.has(image.src)" class="selected-check">
-                                <el-icon><Check /></el-icon>
+                                <el-icon>
+                                    <Check />
+                                </el-icon>
                             </span>
                             <span class="image-meta">
                                 <strong>{{ image.title || image.src }}</strong>
@@ -386,7 +437,9 @@ const confirm = () => {
                         <el-input v-model="collectionQuery" placeholder="搜索合集标题……" clearable
                             @keyup.enter="searchCollection">
                             <template #prefix>
-                                <el-icon><Search /></el-icon>
+                                <el-icon>
+                                    <Search />
+                                </el-icon>
                             </template>
                         </el-input>
                         <el-button type="primary" @click="searchCollection">搜索</el-button>
@@ -407,22 +460,35 @@ const confirm = () => {
             </el-tab-pane>
 
             <el-tab-pane label="上传新图片" name="upload">
-                <el-upload drag multiple :auto-upload="false" :on-change="onFileChange" accept="image/*"
-                    :file-list="files">
-                    <el-icon class="el-icon--upload"><UploadIcon /></el-icon>
-                    <div class="el-upload__text">拖拽图片到此处，或<em>点击选择</em></div>
-                    <template #tip>
-                        <div class="el-upload__tip">上传后会先进入图片系统，再插入文章。重复图片会自动复用。</div>
-                    </template>
-                </el-upload>
-                <div class="upload-actions">
-                    <el-progress v-if="uploading" :percentage="files.length ? Math.round(uploadProgress / files.length * 100) : 0"
-                        :format="() => `${uploadProgress} / ${files.length}`" />
-                    <el-button type="primary" :loading="uploading" @click="uploadSelectedFiles">
-                        上传并选择
-                    </el-button>
+                <div class="upload-single">
+                    <el-upload v-if="!uploadPreview" drag :auto-upload="false" :show-file-list="false"
+                        :on-change="onSingleFileChange" accept="image/*">
+                        <el-icon class="el-icon--upload">
+                            <UploadIcon />
+                        </el-icon>
+                        <div class="el-upload__text">拖拽一张图片到此处，或<em>点击选择</em></div>
+                    </el-upload>
+
+                    <div v-else class="upload-preview-panel">
+                        <el-image :src="uploadPreview" :preview-src-list="[uploadPreview]" fit="contain"
+                            class="upload-preview-image" />
+                        <div class="upload-preview-actions">
+                            <span class="upload-file-name">{{ uploadFile?.name }}</span>
+                            <el-button link type="danger" @click="clearUploadFile">重新选择</el-button>
+                        </div>
+                    </div>
+
+                    <ImageMetadataEditor v-if="uploadFile" v-model="uploadMetadata" compact show-ocr :mock="mock" />
+
+                    <div class="upload-actions">
+                        <el-button type="primary" :loading="uploadingInsert"
+                            :disabled="!uploadFile || !uploadMetadata.title.trim()" @click="uploadAndInsert">
+                            上传并插入文章
+                        </el-button>
+                    </div>
                 </div>
             </el-tab-pane>
+
         </el-tabs>
 
         <template #footer>
@@ -625,6 +691,49 @@ const confirm = () => {
 .collection-detail-title span {
     color: #909399;
     font-size: 12px;
+    white-space: nowrap;
+}
+
+.upload-single {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.upload-preview-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid #ebeef5;
+    border-radius: 10px;
+    background: #fafcff;
+}
+
+.upload-preview-image {
+    width: 100%;
+    max-height: 280px;
+    border-radius: 8px;
+    background: #f5f7fa;
+}
+
+.upload-preview-image :deep(img) {
+    max-height: 280px;
+    object-fit: contain;
+}
+
+.upload-preview-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.upload-file-name {
+    color: #909399;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 

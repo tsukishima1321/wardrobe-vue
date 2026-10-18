@@ -6,10 +6,9 @@ import { Plus } from '@element-plus/icons-vue';
 import RichTextEditor from './RichTextEditor.vue';
 import ImagePickerDialog from './ImagePickerDialog.vue';
 import { createBlogPost, getBlogTags, localDateString } from '@/api/blog';
-import type { BlogTag } from '@/api/blog';
+import type { BlogTag, BlogImageResult } from '@/api/blog';
 import { closeQuickCapture, consumeQuickCaptureSeed, useQuickCapture } from '@/composables/useQuickCapture';
 import { mockTags } from '@/mocks/blog';
-import type { MockImageResult } from '@/mocks/blog';
 
 const router = useRouter();
 const route = useRoute();
@@ -111,7 +110,7 @@ const openImagePicker = (mode: 'insert' | 'reference') => {
     imagePickerVisible.value = true;
 };
 
-const onImagesSelected = (images: MockImageResult[], mode: 'insert' | 'reference') => {
+const onImagesSelected = (images: BlogImageResult[], mode: 'insert' | 'reference') => {
     if (mode === 'reference') {
         const image = images[0];
         if (image) editorRef.value?.insertImageRef(image.src, image.title || '引用图片');
@@ -178,24 +177,21 @@ const expandToEditor = () => {
 </script>
 
 <template>
-    <el-dialog v-model="visible" title="随手一记" width="min(96vw, 760px)" top="6vh"
-        :close-on-click-modal="false" class="quick-capture-dialog" destroy-on-close>
+    <el-dialog v-model="visible" title="随手一记" width="min(96vw, 760px)" top="6vh" :close-on-click-modal="false"
+        class="quick-capture-dialog" destroy-on-close>
         <div class="quick-meta">
             <span class="date-pill">{{ date }}</span>
             <el-button v-if="!showMore" link type="primary" @click="showMore = true">更多设置</el-button>
         </div>
 
-        <RichTextEditor ref="editorRef" compact min-height="220px" autofocus
-            placeholder="今天想记下什么？可以直接粘贴或拖入图片……"
-            :model-value="contentJson"
-            @update:model-value="(value) => updateContent({ json: value })"
-            @update:html="(html) => updateContent({ html })"
-            @update:text="(text) => updateContent({ text })"
+        <RichTextEditor ref="editorRef" compact min-height="220px" autofocus placeholder="今天想记下什么？可以直接粘贴或拖入图片……"
+            :model-value="contentJson" @update:model-value="(value) => updateContent({ json: value })"
+            @update:html="(html) => updateContent({ html })" @update:text="(text) => updateContent({ text })"
             @open-image-picker="openImagePicker" />
 
         <div class="quick-extra">
-            <el-select v-model="tags" multiple filterable allow-create default-first-option
-                placeholder="添加标签（可选）" class="tag-select">
+            <el-select v-model="tags" multiple filterable allow-create default-first-option placeholder="添加标签（可选）"
+                class="tag-select">
                 <el-option v-for="tag in availableTags" :key="tag.id" :label="tag.name" :value="tag.name" />
             </el-select>
 
@@ -222,8 +218,8 @@ const expandToEditor = () => {
             </div>
         </template>
 
-        <ImagePickerDialog v-model="imagePickerVisible" :mode="imagePickerMode" :date="date" :tags="tags"
-            :mock="isMock" @select="onImagesSelected" />
+        <ImagePickerDialog v-model="imagePickerVisible" :mode="imagePickerMode" :date="date" :tags="tags" :mock="isMock"
+            @select="onImagesSelected" />
     </el-dialog>
 </template>
 

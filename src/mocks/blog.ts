@@ -1,4 +1,4 @@
-import type { BlogArchiveItem, BlogPostDetail, BlogPostSummary, BlogSearchResponse, BlogTag } from '@/api/blog';
+import type { BlogArchiveItem, BlogPostDetail, BlogPostSummary, BlogSearchResponse, BlogTag ,BlogImageResult} from '@/api/blog';
 
 export const mockTags: BlogTag[] = [
     { id: 1, name: '日常', count: 12 },
@@ -107,29 +107,19 @@ export const mockSearchResponse = (query: string): BlogSearchResponse => {
     };
 };
 
-export interface MockImageResult {
-    src: string;
-    title: string;
-    date: string;
-    isCollection: boolean;
-    itemCount?: number;
-    collectionHref?: string;
-    collectionTitle?: string;
-}
-
-export const mockImages: MockImageResult[] = [
+export const mockImages: BlogImageResult[] = [
     { src: 'mock-october-wind.jpg', title: '十月的风', date: '2026-10-17', isCollection: false },
     { src: 'mock-river.jpg', title: '河边', date: '2026-10-15', isCollection: false },
     { src: 'mock-desk.jpg', title: '整理桌面', date: '2026-10-12', isCollection: false },
     { src: 'mock-collection.jpg', title: '夏日合集', date: '2026-08-01', isCollection: true, itemCount: 4 },
 ];
 
-export const mockCollections: MockImageResult[] = [
+export const mockCollections: BlogImageResult[] = [
     { src: 'mock-collection.jpg', title: '夏日合集', date: '2026-08-01', isCollection: true, itemCount: 4 },
     { src: 'mock-collection-cafe.jpg', title: '咖啡馆的下午', date: '2026-06-18', isCollection: true, itemCount: 3 },
 ];
 
-export const mockCollectionItems: Record<string, MockImageResult[]> = {
+export const mockCollectionItems: Record<string, BlogImageResult[]> = {
     'mock-collection.jpg': [
         { src: 'mock-summer-1.jpg', title: '夏日合集 · 海边', date: '2026-08-01', isCollection: false, collectionHref: 'mock-collection.jpg', collectionTitle: '夏日合集' },
         { src: 'mock-summer-2.jpg', title: '夏日合集 · 树影', date: '2026-08-01', isCollection: false, collectionHref: 'mock-collection.jpg', collectionTitle: '夏日合集' },
