@@ -600,7 +600,8 @@ watch(showViewOriginalBtn, (show) => {
                                     style="width: 100%; height: 80vh; border-radius: 8px;" />
                             </template>
                         </el-skeleton>
-                        <el-image v-show="!imgLoading" :src="imageSrc" :preview-src-list="[imageSrc]" class="main-image">
+                        <el-image v-show="!imgLoading" :src="imageSrc" :preview-src-list="[imageSrc]"
+                            class="main-image">
                             <template #error>
                                 <div class="image-error">
                                     <el-icon>
@@ -638,16 +639,11 @@ watch(showViewOriginalBtn, (show) => {
                     </div>
                     <div class="collection-grid" v-loading="collectionLoading">
                         <div v-for="(item, index) in collectionItems" :key="item.image_href"
-                            class="collection-grid-item"
-                            :class="{
+                            class="collection-grid-item" :class="{
                                 'is-dragging': dragIndex === index,
                                 'is-drag-over': dragOverIndex === index && dragIndex !== index,
-                            }"
-                            draggable="true"
-                            @dragstart="onDragStart(index, $event)"
-                            @dragover="onDragOver(index, $event)"
-                            @dragleave="onDragLeave"
-                            @drop="onDrop(index)"
+                            }" draggable="true" @dragstart="onDragStart(index, $event)"
+                            @dragover="onDragOver(index, $event)" @dragleave="onDragLeave" @drop="onDrop(index)"
                             @dragend="onDragEnd">
                             <div class="collection-img-wrapper">
                                 <el-image :src="collectionThumbUrl(item)" fit="cover" class="collection-thumb"
@@ -709,12 +705,16 @@ watch(showViewOriginalBtn, (show) => {
                     <div class="preview-controls">
                         <el-button class="preview-nav-btn preview-nav-left" :disabled="previewIndex <= 0"
                             @click="navigatePreview(-1)" circle size="large">
-                            <el-icon><ArrowLeft /></el-icon>
+                            <el-icon>
+                                <ArrowLeft />
+                            </el-icon>
                         </el-button>
                         <el-button class="preview-nav-btn preview-nav-right"
                             :disabled="previewIndex >= collectionItems.length - 1" @click="navigatePreview(1)" circle
                             size="large">
-                            <el-icon><ArrowRight /></el-icon>
+                            <el-icon>
+                                <ArrowRight />
+                            </el-icon>
                         </el-button>
                     </div>
                 </template>
@@ -739,11 +739,6 @@ watch(showViewOriginalBtn, (show) => {
                         <el-input v-else v-model="imgTitle" placeholder="图片标题" class="title-input" size="large" />
 
                         <div class="actions">
-                            <el-button v-if="!enableEdit" link type="primary" @click="insertToDiary">
-                                <el-icon>
-                                    <Notebook />
-                                </el-icon> 插入到日记
-                            </el-button>
                             <el-button v-if="!enableEdit" link type="primary" @click="startEdit">
                                 <el-icon>
                                     <Edit />
@@ -851,6 +846,14 @@ watch(showViewOriginalBtn, (show) => {
                 </div>
 
                 <el-divider />
+                <div class="section blog-section">
+                    <el-button v-if="!enableEdit" link type="primary" @click="insertToDiary">
+                        <el-icon>
+                            <Notebook />
+                        </el-icon> 插入到日记
+                    </el-button>
+                </div>
+                <el-divider />
 
                 <!-- Danger Zone -->
                 <div class="section danger-section">
@@ -858,6 +861,10 @@ watch(showViewOriginalBtn, (show) => {
                         删除{{ isCollection ? '合集' : '图片' }}
                     </el-button>
                 </div>
+
+
+
+
             </div>
         </div>
     </div>
@@ -1214,6 +1221,11 @@ watch(showViewOriginalBtn, (show) => {
 
 /* Danger zone */
 .danger-section {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.blog-section {
     display: flex;
     justify-content: flex-end;
 }
