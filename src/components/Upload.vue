@@ -23,6 +23,8 @@ import type { UploadFile } from 'element-plus';
 import { debounce } from 'lodash';
 import { Plus, Delete, UploadFilled, Picture, ZoomIn, ZoomOut, Refresh, Connection, List, Collection, CopyDocument } from '@element-plus/icons-vue';
 import CopyAttributesDialog from '@/components/upload/CopyAttributesDialog.vue';
+import LocationField from '@/components/location/LocationField.vue';
+import { previewLocation, type PhotoLocation } from '@/api/location';
 
 const router = useRouter();
 
@@ -90,6 +92,8 @@ const loadUnprocessedImages = async () => {
 
 // Queue Management
 interface QueueItem {
+    location?: PhotoLocation | null;
+    readingLocation?: boolean;
     file?: File;
     uid: number;
     previewUrl: string;
@@ -103,6 +107,10 @@ interface QueueItem {
 const fileQueue = ref<QueueItem[]>([]);
 const currentIndex = ref(0);
 const currentFile = computed(() => fileQueue.value[currentIndex.value]);
+const imgLocation = computed({
+    get: () => currentFile.value?.location ?? null,
+    set: (value: PhotoLocation | null) => { if (currentFile.value) currentFile.value.location = value; },
+});
 
 // Zoom Controls
 const zoomLevel = ref(1);
@@ -233,6 +241,13 @@ const handleFileChange = async (uploadFile: UploadFile) => {
                 previewUrl: e.target?.result as string
             };
             fileQueue.value.push(newItem);
+            const queued = fileQueue.value.find(item => item.uid === newItem.uid)!;
+            queued.readingLocation = true;
+            void previewLocation(uploadFile.raw!).then(location => {
+                if (queued.location === undefined) queued.location = location;
+            }).catch(() => {
+                ElMessage.warning('位置预读失败，上传时将重试；也可通过地图选点');
+            }).finally(() => { queued.readingLocation = false; });
 
             // If this is the first file added, init form
             if (fileQueue.value.length === 1) {
@@ -253,6 +268,8 @@ const initFormForFile = async (item: QueueItem) => {
         const loading = ElLoading.service({ target: '.details-panel', text: '加载详情...' });
         try {
             const data = await getImageDetail(item.src);
+            if (item.location === undefined) item.location = data.location || null;
+            if (currentFile.value?.uid !== item.uid) return;
             imgTitle.value = data.title || '';
             imgDate.value = data.date || new Date().toISOString().split('T')[0];
             keywords.value = data.keywords ? [...data.keywords] : [];
@@ -371,6 +388,9 @@ const submitCurrent = async () => {
         formData.append('doOCR', isOCR.value ? 'true' : 'false');
         formData.append('keywords', JSON.stringify(keywords.value));
         formData.append('properties', JSON.stringify(properties.value));
+        if (currentFile.value.location !== undefined) {
+            formData.append('location', JSON.stringify(currentFile.value.location));
+        }
 
         const res = await uploadImage(formData);
         ElMessage.success('上传成功');
@@ -409,7 +429,8 @@ const submitReprocess = async () => {
         await setImageInfo({
             src: item.src,
             title: imgTitle.value,
-            date: imgDate.value
+            date: imgDate.value,
+            location: item.location,
         });
 
         // 2. Sync Keywords
@@ -761,6 +782,7 @@ const applyCopyAttributes = (payload: { keywords: string[]; properties: Array<{ 
                             </el-col>
                         </el-row>
                     </el-form>
+                    <LocationField v-model="imgLocation" :loading="currentFile?.readingLocation" />
                 </div>
 
                 <el-divider />

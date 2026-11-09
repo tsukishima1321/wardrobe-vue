@@ -1,5 +1,6 @@
 import { fetchDataAutoRetry } from "@/api/token";
 import type { TokenResponse } from "@/api/token";
+import type { PhotoLocation } from './location';
 
 export interface BackupRecord {
     timestamp: string;
@@ -154,6 +155,7 @@ export interface ImageUsagePost {
 }
 
 export interface ImageData {
+    location?: PhotoLocation | null;
     src: string;
     title: string;
     date: string;
@@ -473,7 +475,7 @@ export const getPropertyList = async (src: string): Promise<ImageProperty[]> => 
     return fetchDataAutoRetry('/api/property/list/', { src }, 'POST') as Promise<ImageProperty[]>;
 };
 
-export const setImageInfo = async (data: { src: string; title: string; date: string }): Promise<void> => {
+export const setImageInfo = async (data: { src: string; title: string; date: string; location?: PhotoLocation | null }): Promise<void> => {
     await fetchDataAutoRetry('/api/image/set/', data, 'POST');
 };
 

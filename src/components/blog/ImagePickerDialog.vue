@@ -10,6 +10,7 @@ import { mockCollectionItems, mockCollections, mockImages } from '@/mocks/blog';
 import ImageMetadataEditor from '@/components/upload/ImageMetadataEditor.vue';
 import type { ImageMetadataValue } from '@/components/upload/types';
 import { localDateString, type BlogImageResult } from '@/api/blog';
+import { previewLocation } from '@/api/location';
 
 const props = withDefaults(defineProps<{
     modelValue: boolean;
@@ -264,6 +265,12 @@ const onSingleFileChange = (file: UploadFile) => {
     const wasAutoTitle = !uploadMetadata.value.title.trim() || uploadMetadata.value.title === oldAutoTitle;
 
     uploadFile.value = raw;
+    uploadMetadata.value.location = undefined;
+    if (!props.mock) {
+        void previewLocation(raw).then(location => {
+            if (uploadFile.value === raw && uploadMetadata.value.location === undefined) uploadMetadata.value.location = location;
+        }).catch(() => { ElMessage.warning('位置预读失败，可手动选择；上传时会重试'); });
+    }
     const reader = new FileReader();
     reader.onload = (event) => {
         uploadPreview.value = event.target?.result as string;
@@ -315,6 +322,7 @@ const uploadAndInsert = async () => {
         form.append('doOCR', uploadMetadata.value.isOCR ? 'true' : 'false');
         form.append('keywords', JSON.stringify(uploadMetadata.value.keywords));
         form.append('properties', JSON.stringify(uploadMetadata.value.properties));
+        if (uploadMetadata.value.location !== undefined) form.append('location', JSON.stringify(uploadMetadata.value.location));
 
         let md5 = '';
         try {

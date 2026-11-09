@@ -7,6 +7,7 @@ import { getSearchHints, predictImage } from '@/api/componentRequests';
 import type { ImageProperty } from '@/api/componentRequests';
 import CopyAttributesDialog from './CopyAttributesDialog.vue';
 import type { ImageMetadataValue } from './types';
+import LocationField from '@/components/location/LocationField.vue';
 
 const props = withDefaults(defineProps<{
     modelValue: ImageMetadataValue;
@@ -208,6 +209,7 @@ const applyCopyAttributes = (payload: { keywords: string[]; properties: ImagePro
             </div>
         </el-form>
 
+        <LocationField :model-value="modelValue.location" @update:model-value="(location) => update({ location })" />
         <div class="metadata-section">
             <div class="section-row">
                 <span class="section-label">关键词</span>

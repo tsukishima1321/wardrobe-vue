@@ -104,10 +104,6 @@ const open = () => emit('open', props.post);
     box-shadow: 0 12px 28px rgba(31, 45, 61, 0.08);
 }
 
-.post-card.kind-note {
-    
-}
-
 .post-cover {
     height: 190px;
     overflow: hidden;

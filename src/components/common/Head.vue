@@ -1,7 +1,7 @@
 <script setup lang="ts">
 
 import favicon from '@/assets/icons/favicon.ico';
-import { Management, Picture, PictureRounded, Notebook, Bell, Check, Link, EditPen } from '@element-plus/icons-vue';
+import { Management, Picture, PictureRounded, Notebook, Bell, Check, Link, EditPen, Location } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
 import { onMounted, onUnmounted, ref, computed } from 'vue';
 import { AuthenticationError, refreshAccessToken } from '@/api/token';
@@ -216,6 +216,7 @@ onUnmounted(() => {
         <el-menu-item index="/gallery"><el-icon>
                 <PictureRounded />
             </el-icon>总览</el-menu-item>
+        <el-menu-item index="/map"><el-icon><Location /></el-icon>地图</el-menu-item>
         <el-menu-item index="/manage"><el-icon>
                 <Management />
             </el-icon>管理</el-menu-item>
@@ -290,6 +291,11 @@ onUnmounted(() => {
 .headermenu {
     width: 100%;
     margin: 0;
+}
+
+@media (max-width: 700px) {
+    .headermenu { overflow-x: auto; }
+    .headermenu > .el-menu-item { padding-left: 10px; padding-right: 10px; flex-shrink: 0; }
 }
 
 .el-menu-item {

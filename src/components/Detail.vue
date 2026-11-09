@@ -25,6 +25,9 @@ import {
 import type { CollectionItem, ImageUsagePost, ReorderItem } from '@/api/componentRequests';
 import { ZoomIn, ZoomOut, Refresh, Picture, Edit, Check, Plus, Delete, Collection, Upload as UploadIcon, Star, StarFilled, ArrowLeft, ArrowRight, Notebook } from '@element-plus/icons-vue';
 import { ElImageViewer } from 'element-plus';
+import LocationField from './location/LocationField.vue';
+import type { PhotoLocation } from '@/api/location';
+const imgLocation = ref<PhotoLocation | null>(null);
 
 const router = useRouter();
 const imgSrc = ref(router.currentRoute.value.params.src);
@@ -80,6 +83,7 @@ const maxZoom = 5;
 const zoomStep = 0.2;
 
 interface imgData {
+    location?: PhotoLocation | null,
     src: string,
     title: string,
     date: string,
@@ -115,6 +119,7 @@ const loadImg = async () => {
         imgTitle.value = r.title;
         imgText.value = r.text;
         imgDate.value = r.date;
+        imgLocation.value = r.location || null;
         isCollection.value = !!r.is_collection;
         const keywordsData = await getKeywordList(imgSrc.value as string);
         keywords.value = keywordsData as Array<string>;
@@ -160,6 +165,7 @@ const submitEdit = async () => {
             src: imgSrc.value as string,
             title: imgTitle.value,
             date: imgDate.value,
+            location: imgLocation.value,
         };
 
         await setImageInfo(data);
@@ -766,6 +772,7 @@ watch(showViewOriginalBtn, (show) => {
                     </div>
                 </div>
 
+                <LocationField v-model="imgLocation" :readonly="!enableEdit" />
                 <el-divider />
 
                 <!-- Keywords -->

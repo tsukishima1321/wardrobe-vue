@@ -4,6 +4,11 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     {
+      path: '/map',
+      name: 'map',
+      component: () => import('../views/MapView.vue'),
+    },
+    {
       path: '/',
       name: 'home',
       component: () => import('../views/HomeView.vue'),
